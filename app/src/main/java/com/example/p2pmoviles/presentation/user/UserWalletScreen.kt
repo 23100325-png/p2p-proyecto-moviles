@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,8 +32,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.p2pmoviles.data.model.BilleteraUsuario
+import com.example.p2pmoviles.data.model.MonedaInfo
 import com.example.p2pmoviles.presentation.admin.*
 import com.example.p2pmoviles.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +49,11 @@ fun UserWalletScreen(
     var mostrarDialogRecarga by remember { mutableStateOf(false) }
     var mostrarDialogRetiro by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope() // Necesario para lanzar el snackbar de forma asíncrona
+
+    val estaRefrescando by viewModel.estaRefrescando.collectAsState()
+
     LaunchedEffect(userId) {
         viewModel.inicializarUsuario(userId)
     }
@@ -57,6 +65,7 @@ fun UserWalletScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }, // 🟢 NUEVO: Contenedor de mensajes
         containerColor = BinanceBackground
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
@@ -97,35 +106,83 @@ fun UserWalletScreen(
                     Text(state.msg, color = BinanceError, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                 }
                 is UserWalletState.Success -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(state.billeteras) { billetera ->
-                            CardBilleteraUsuarioItem(billetera)
+                    val monedasGlobales by viewModel.listaMonedasGlobales.collectAsState()
+                    PullToRefreshBox(
+                        isRefreshing = estaRefrescando,
+                        onRefresh = {
+                            // Esto se ejecuta cuando el usuario jala la pantalla hacia abajo
+                            viewModel.obtenerBilleteras()
+                        },
+                        modifier = Modifier.fillMaxSize ().weight(1f) // Ocupa el espacio restante debajo de los botones
+                    ) {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(state.billeteras) { billetera ->
+                                CardBilleteraUsuarioItem(billetera)
+                            }
                         }
-                    }
+                        // Inyección de ventanas flotantes condicionales
+                        if (mostrarDialogRecarga) {
+                            DialogRecarga(
+                                monedasDisponibles = monedasGlobales,
+                                onDismiss = { mostrarDialogRecarga = false },
+                                onConfirm = { idMoneda, monto, uri ->
+                                    val bytes = uri?.let {
+                                        context.contentResolver.openInputStream(it)?.readBytes()
+                                    }
 
-                    // Inyección de ventanas flotantes condicionales
-                    if (mostrarDialogRecarga) {
-                        DialogRecarga(
-                            billeteras = state.billeteras,
-                            onDismiss = { mostrarDialogRecarga = false },
-                            onConfirm = { idMoneda, monto, uri ->
-                                val bytes = uri?.let { context.contentResolver.openInputStream(it)?.readBytes() }
-                                viewModel.realizarRecarga(idMoneda, monto, uri, bytes)
-                                mostrarDialogRecarga = false
-                            }
-                        )
-                    }
+                                    // 🟢 Modificado: Ahora le pasamos las funciones para los mensajes
+                                    viewModel.realizarRecarga(
+                                        monedaId = idMoneda,
+                                        monto = monto,
+                                        imageUri = uri,
+                                        byteArray = bytes,
+                                        onError = { mensajeError ->
+                                            // Lanza el mensaje flotante en caso de error
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    mensajeError
+                                                )
+                                            }
+                                        },
+                                        onSuccess = { mensajeExito ->
+                                            // Lanza el mensaje flotante en caso de éxito
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    mensajeExito
+                                                )
+                                            }
+                                        }
+                                    )
+                                    mostrarDialogRecarga = false
+                                }
+                            )
+                        }
 
-                    if (mostrarDialogRetiro) {
-                        DialogRetiro(
-                            billeteras = state.billeteras,
-                            onDismiss = { mostrarDialogRetiro = false },
-                            onConfirm = { idMoneda, monto ->
-                                viewModel.realizarRetiro(idMoneda, monto, onError = {}, onSuccess = {
-                                    mostrarDialogRetiro = false
-                                })
-                            }
-                        )
+                        if (mostrarDialogRetiro) {
+                            DialogRetiro(
+                                billeteras = state.billeteras,
+                                onDismiss = { mostrarDialogRetiro = false },
+                                onConfirm = { idMoneda, monto ->
+                                    viewModel.realizarRetiro(
+                                        monedaId = idMoneda,
+                                        monto = monto,
+                                        onError = { mensajeError ->
+                                            // Si el trigger de saldo insuficiente salta, se muestra aquí el error en rojo
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    mensajeError
+                                                )
+                                            }
+                                        },
+                                        onSuccess = {
+                                            // Si pasa el trigger, avisa del éxito
+                                            scope.launch { snackbarHostState.showSnackbar("¡Solicitud de retiro enviada! Tus fondos han sido reservados.") }
+                                            mostrarDialogRetiro = false
+                                        }
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -181,12 +238,13 @@ fun CardBilleteraUsuarioItem(billetera: BilleteraUsuario) {
 // 🟢 VENTANA FLOTANTE 1: RECARGA (DEPÓSITOS)
 @Composable
 fun DialogRecarga(
-    billeteras: List<BilleteraUsuario>,
+    monedasDisponibles: List<MonedaInfo>, // 🟢 Ahora recibe el catálogo completo de monedas
     onDismiss: () -> Unit,
     onConfirm: (Long, Double, Uri?) -> Unit
 ) {
     var montoText by remember { mutableStateOf("") }
-    var billeteraSeleccionada by remember { mutableStateOf(billeteras.firstOrNull()) }
+    // Dejamos seleccionada la primera moneda de la lista por defecto
+    var monedaSeleccionada by remember { mutableStateOf(monedasDisponibles.firstOrNull()) }
     var menuExpandido by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -206,14 +264,19 @@ fun DialogRecarga(
                 // Menú Desplegable de Monedas
                 Box(modifier = Modifier.fillMaxWidth().background(BinanceBackground, RoundedCornerShape(4.dp)).clickable { menuExpandido = true }.padding(12.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(billeteraSeleccionada?.monedas?.nombre ?: "Seleccionar Moneda", color = BinanceTextPrimary)
+                        // Muestra el nombre de la moneda seleccionada
+                        Text(monedaSeleccionada?.nombre ?: "Seleccionar Moneda", color = BinanceTextPrimary)
                         Icon(Icons.Default.ArrowDropDown, null, tint = BinanceYellow)
                     }
                     DropdownMenu(expanded = menuExpandido, onDismissRequest = { menuExpandido = false }, modifier = Modifier.background(BinanceInputBackground)) {
-                        billeteras.forEach { b ->
+                        // 🟢 Recorremos el catálogo de monedas globales
+                        monedasDisponibles.forEach { moneda ->
                             DropdownMenuItem(
-                                text = { Text(b.monedas?.nombre ?: "", color = BinanceTextPrimary) },
-                                onClick = { billeteraSeleccionada = b; menuExpandido = false }
+                                text = { Text(moneda.nombre, color = BinanceTextPrimary) },
+                                onClick = {
+                                    monedaSeleccionada = moneda
+                                    menuExpandido = false
+                                }
                             )
                         }
                     }
@@ -241,7 +304,8 @@ fun DialogRecarga(
                 Button(
                     onClick = {
                         val monto = montoText.toDoubleOrNull() ?: 0.0
-                        billeteraSeleccionada?.monedaId?.let { onConfirm(it, monto, imageUri) }
+                        // 🟢 Enviamos el id correcto de la moneda seleccionada
+                        monedaSeleccionada?.id?.let { onConfirm(it, monto, imageUri) }
                     },
                     enabled = montoText.isNotEmpty() && imageUri != null,
                     colors = ButtonDefaults.buttonColors(containerColor = BinanceSuccess),

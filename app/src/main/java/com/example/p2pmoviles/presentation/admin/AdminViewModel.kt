@@ -21,6 +21,9 @@ class AdminViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<AdminUIState>(AdminUIState.Loading)
     val uiState: StateFlow<AdminUIState> = _uiState
 
+    private val _estaRefrescando = MutableStateFlow(false)
+    val estaRefrescando: StateFlow<Boolean> = _estaRefrescando
+
     init {
         obtenerMovimientos()
     }
@@ -28,6 +31,7 @@ class AdminViewModel : ViewModel() {
     fun obtenerMovimientos() {
         viewModelScope.launch {
             _uiState.value = AdminUIState.Loading
+            _estaRefrescando.value = true // 🟢 Iniciamos la animación de jalar
             try {
                 // Consulta con Join Relacional nativo de Supabase
                 val result = SupabaseClient.client.postgrest["movimientos_fondos"]
@@ -39,6 +43,8 @@ class AdminViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("AdminVM", "Error cargando movimientos", e)
                 _uiState.value = AdminUIState.Error("Error al conectar con la base de datos.")
+            }finally {
+                _estaRefrescando.value = false // 🟢 Apagamos la animación pase lo que pase
             }
         }
     }

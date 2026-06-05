@@ -5,14 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +38,7 @@ fun AdminDashboardScreen(
     adminViewModel: AdminViewModel = viewModel()
 ) {
     val uiState by adminViewModel.uiState.collectAsState()
+    val estaRefrescando by adminViewModel.estaRefrescando.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var voucherUrlToShow by remember { mutableStateOf<String?>(null) }
 
@@ -46,22 +50,34 @@ fun AdminDashboardScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Comprobante de Pago", color = BinanceTextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Comprobante de Pago",
+                            color = BinanceTextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
                         IconButton(onClick = { voucherUrlToShow = null }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = BinanceError)
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Cerrar",
+                                tint = BinanceError
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     AsyncImage(
                         model = url,
                         contentDescription = "Voucher Completo",
-                        modifier = Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.fillMaxWidth().height(350.dp)
+                            .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -78,7 +94,12 @@ fun AdminDashboardScreen(
                             modifier = Modifier.size(8.dp).background(BinanceYellow, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Binance Admin Panel", color = BinanceYellow, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text(
+                            "Binance Admin Panel",
+                            color = BinanceYellow,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
@@ -109,19 +130,29 @@ fun AdminDashboardScreen(
                     )
                 }
             ) {
-                val titulos = listOf("Todos (${movimientosCompletos.size})", "Recarga (${movimientosCompletos.count { it.tipoMovimiento == "RECARGA" }})", "Retiros (${movimientosCompletos.count { it.tipoMovimiento == "RETIRO" }})")
+                val titulos = listOf(
+                    "Todos (${movimientosCompletos.size})",
+                    "Recarga (${movimientosCompletos.count { it.tipoMovimiento == "RECARGA" }})",
+                    "Retiros (${movimientosCompletos.count { it.tipoMovimiento == "RETIRO" }})"
+                )
                 titulos.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontWeight = FontWeight.Medium, color = if (selectedTab == index) BinanceTextPrimary else BinanceTextSecondary) }
+                        text = {
+                            Text(
+                                title,
+                                fontWeight = FontWeight.Medium,
+                                color = if (selectedTab == index) BinanceTextPrimary else BinanceTextSecondary
+                            )
+                        }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "HISTORIAL DE SOLICITUDES PENDIENTES",
+                text = "SOLICITUDES PENDIENTES",
                 color = BinanceTextSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -136,28 +167,60 @@ fun AdminDashboardScreen(
                         CircularProgressIndicator(color = BinanceYellow)
                     }
                 }
+
                 is AdminUIState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(state.msg, color = BinanceError, textAlign = TextAlign.Center)
                     }
                 }
+
                 is AdminUIState.Success -> {
-                    if (listaFiltrada.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No hay transacciones pendientes en esta sección.", color = BinanceTextSecondary, fontSize = 14.sp)
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(listaFiltrada) { mov ->
-                                RowTransaccionItem(
-                                    movimiento = mov,
-                                    onVerVoucher = { url -> voucherUrlToShow = url },
-                                    onAprobar = { adminViewModel.procesarSolicitud(mov, aprobar = true) },
-                                    onRechazar = { adminViewModel.procesarSolicitud(mov, aprobar = false) }
+                    // 🟢 2. ENVOLVEMOS EL CONTROL DE LA LISTA EN EL PULLTOREFRESHBOX
+                    PullToRefreshBox(
+                        isRefreshing = estaRefrescando,
+                        onRefresh = {
+                            // 🟢 Esto llama a tu función de Supabase del ViewModel para actualizar
+                            adminViewModel.obtenerMovimientos()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (listaFiltrada.isEmpty()) {
+                            // Si la lista está vacía, igual permitimos jalar hacia abajo metiendo el texto en un contenedor con scroll
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No hay transacciones pendientes en esta sección.",
+                                    color = BinanceTextSecondary,
+                                    fontSize = 14.sp
                                 )
+                            }
+                        } else {
+                            // Tu LazyColumn original intacta
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(listaFiltrada) { mov ->
+                                    RowTransaccionItem(
+                                        movimiento = mov,
+                                        onVerVoucher = { url -> voucherUrlToShow = url },
+                                        onAprobar = {
+                                            adminViewModel.procesarSolicitud(
+                                                mov,
+                                                aprobar = true
+                                            )
+                                        },
+                                        onRechazar = {
+                                            adminViewModel.procesarSolicitud(
+                                                mov,
+                                                aprobar = false
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -166,6 +229,7 @@ fun AdminDashboardScreen(
         }
     }
 }
+
 
 @Composable
 fun RowTransaccionItem(
@@ -217,14 +281,14 @@ fun RowTransaccionItem(
             }
 
             // 3. Comprobante (Voucher)
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(0.8f), contentAlignment = Alignment.Center) {
                 if (movimiento.tipoMovimiento == "RECARGA" && !movimiento.rutaVoucher.isNullOrEmpty()) {
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(BinanceBackground)
                             .clickable { onVerVoucher(movimiento.rutaVoucher) }
-                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = "Ver", tint = BinanceYellow, modifier = Modifier.size(14.dp))
@@ -238,16 +302,36 @@ fun RowTransaccionItem(
 
             // 4. Acciones (Botones aprobar / rechazar)
             Row(
-                modifier = Modifier.weight(0.6f),
+                modifier = Modifier.weight(1f), // 🟢 Aumentamos el peso a 1f para dar espacio real y evitar colapsos
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onAprobar, modifier = Modifier.size(36.dp).background(BinanceSuccess.copy(alpha = 0.2f), CircleShape)) {
-                    Icon(Icons.Default.Check, contentDescription = "Aprobar", tint = BinanceSuccess, modifier = Modifier.size(18.dp))
+                // 🟢 BOTÓN RECHAZAR: Ícono limpio sin fondo circular pesado
+                IconButton(
+                    onClick = onRechazar,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Rechazar",
+                        tint = BinanceError, // Mantiene tu color rojo de error
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = onRechazar, modifier = Modifier.size(32.dp).background(BinanceError.copy(alpha = 0.2f), CircleShape)) {
-                    Icon(Icons.Default.Close, contentDescription = "Rechazar", tint = BinanceError, modifier = Modifier.size(18.dp))
+
+                Spacer(modifier = Modifier.width(12.dp)) // 🟢 ESPACIO CLAVE: Separación física segura entre ambos comandos
+
+                // 🟢 BOTÓN APROBAR: Ícono limpio sin fondo circular pesado
+                IconButton(
+                    onClick = onAprobar,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Aprobar",
+                        tint = BinanceSuccess, // Mantiene tu color verde de éxito
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
