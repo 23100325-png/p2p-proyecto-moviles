@@ -3,7 +3,7 @@
 Proyecto del curso Desarrollo de Aplicaciones Móviles.
 
 ## Descripción
-Sistema web P2P para intercambio de divisas entre usuarios mediante publicación de ofertas, matching automático y validación de pagos.
+Sistema móvil P2P para intercambio de divisas entre usuarios mediante publicación de ofertas, matching automático y validación de pagos.
 
 ## Integrantes
 - Romario Huamani
