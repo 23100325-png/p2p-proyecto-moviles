@@ -33,7 +33,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.p2pmoviles.data.model.BilleteraUsuario
 import com.example.p2pmoviles.data.model.MonedaInfo
-import com.example.p2pmoviles.presentation.admin.*
 import com.example.p2pmoviles.ui.theme.*
 import kotlinx.coroutines.launch
 

@@ -10,6 +10,7 @@ import com.example.p2pmoviles.presentation.admin.AdminDashboardScreen
 import com.example.p2pmoviles.presentation.auth.AuthViewModel
 import com.example.p2pmoviles.presentation.auth.LoginScreen
 import com.example.p2pmoviles.presentation.auth.RegistroScreen
+import com.example.p2pmoviles.presentation.user.MainScreenContainer
 import com.example.p2pmoviles.presentation.user.UserWalletScreen
 import com.example.p2pmoviles.ui.theme.P2PMovilesTheme
 
@@ -58,8 +59,7 @@ class MainActivity : ComponentActivity() {
                         // Obtenemos el UID dinámico del usuario que acaba de loguearse desde tu ViewModel de Auth
                         val uidLogueado = authViewModel.usuarioActualId // Asegúrate de tener expuesto este String en tu AuthVM
 
-                        // Inyectamos la pantalla operativa del cliente
-                        UserWalletScreen(userId = uidLogueado)
+                        MainScreenContainer(usuarioLogueadoId = uidLogueado)
                     }
 
                     "admin" -> {

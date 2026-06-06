@@ -9,3 +9,4 @@ val BinanceTextPrimary = Color(0xFFEAECEF) // Texto blanco
 val BinanceTextSecondary = Color(0xFF848E9C) // Texto gris para subtítulos
 val BinanceError = Color(0xFFF6465D) // Rojo para errores
 val BinanceSuccess = Color(0xFF0ECB81) // Verde Binance estándar para depósitos
+val BinanceGreen = Color(0xFF0ECB81)
