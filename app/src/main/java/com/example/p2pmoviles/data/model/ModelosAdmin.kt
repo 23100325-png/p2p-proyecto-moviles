@@ -22,6 +22,7 @@ data class MovimientoAdmin(
     @SerialName("ruta_voucher") val rutaVoucher: String?,
     val estado: String, // "PENDIENTE", "APROBADO", "RECHAZADO"
     @SerialName("fecha_solicitud") val fechaSolicitud: String,
+    @SerialName("fecha_procesado") val fechaProcesado: String? = null,
     // Aquí recibimos la relación de la tabla 'monedas' anidada
     val monedas: MonedaInfo? = null
 )
