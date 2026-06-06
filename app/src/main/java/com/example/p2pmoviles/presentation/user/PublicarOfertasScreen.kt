@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
@@ -28,6 +29,7 @@ import com.example.p2pmoviles.ui.theme.*
 @Composable
 fun PublicarOfertaScreen(
     usuarioLogueadoId: String,
+    onBackClick: () -> Unit = {},
     ofertasViewModel: OfertasViewModel = viewModel()
 ) {
     // Inicializamos los catálogos en el ViewModel con el ID del usuario
@@ -69,6 +71,21 @@ fun PublicarOfertaScreen(
             terminosCheck
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = BinanceTextPrimary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = BinanceBackground
     ) { paddingValues ->

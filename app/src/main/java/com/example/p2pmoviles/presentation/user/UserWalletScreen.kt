@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun UserWalletScreen(
     userId: String,
+    onBackClick: () -> Unit = {},
     viewModel: UserWalletViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -61,6 +62,15 @@ fun UserWalletScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Billetera P2P", color = BinanceTextPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = BinanceTextPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
             )
         },
