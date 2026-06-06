@@ -31,7 +31,7 @@ import com.example.p2pmoviles.data.model.MovimientoAdmin
 import com.example.p2pmoviles.data.model.PerfilAdmin
 import com.example.p2pmoviles.data.model.ResumenOperaciones
 import com.example.p2pmoviles.ui.theme.*
-
+//hola
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
