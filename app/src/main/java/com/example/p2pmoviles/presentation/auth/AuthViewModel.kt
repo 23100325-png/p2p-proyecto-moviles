@@ -121,6 +121,24 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun cerrarSesion(onResultado: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                // 1. Destruye el token en los servidores de Supabase
+                SupabaseClient.client.auth.signOut()
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Error al destruir sesión en Supabase", e)
+            } finally {
+                // 2. PASE LO QUE PASE (así falle internet), limpiamos la memoria local
+                usuarioActualId = ""
+                _estadoLogin.value = LoginState.Idle
+
+                // 3. 🟢 LE AVISAMOS A LA NAVEGACIÓN QUE YA PUEDE PROSEGUIR
+                onResultado()
+            }
+        }
+    }
+
 
 // OBSERVACIÓN 4: Clases selladas actualizadas a 'data object' estándar moderno de Kotlin
 sealed class RegistroState {

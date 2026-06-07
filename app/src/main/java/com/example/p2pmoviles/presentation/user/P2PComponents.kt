@@ -317,3 +317,130 @@ fun OfertaP2PCard(
         }
     }
 }
+/*
+@Composable
+fun CabeceraFiltrosMercado(
+    codigoTengo: String,
+    codigoQuiero: String,
+    onTengoClick: () -> Unit,
+    onQuieroClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BinanceInputBackground, RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Moneda",
+            color = BinanceTextPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(58.dp)
+                    .border(
+                        width = 1.dp,
+                        color = BinanceTextSecondary.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .clickable { onTengoClick() }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (codigoTengo == "USD") "🇺🇸" else "💱",
+                            fontSize = 20.sp
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = codigoTengo,
+                            color = BinanceTextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = BinanceTextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = null,
+                tint = BinanceYellow,
+                modifier = Modifier.size(28.dp)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(58.dp)
+                    .border(
+                        width = 1.dp,
+                        color = BinanceTextSecondary.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .clickable { onQuieroClick() }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (codigoQuiero == "PEN") "🇵🇪" else "💱",
+                            fontSize = 20.sp
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = codigoQuiero,
+                            color = BinanceTextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = BinanceTextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+ */
