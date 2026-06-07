@@ -71,4 +71,10 @@ dependencies {
 
     // NUEVO: Soluciona el error Unresolved reference 'AsyncImage' / 'coil'
     implementation(libs.coil.compose)
+
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("androidx.compose.material:material-icons-extended")
 }
