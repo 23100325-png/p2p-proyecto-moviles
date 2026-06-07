@@ -22,6 +22,30 @@ data class MovimientoAdmin(
     @SerialName("ruta_voucher") val rutaVoucher: String?,
     val estado: String, // "PENDIENTE", "APROBADO", "RECHAZADO"
     @SerialName("fecha_solicitud") val fechaSolicitud: String,
+    @SerialName("fecha_procesado") val fechaProcesado: String? = null,
     // Aquí recibimos la relación de la tabla 'monedas' anidada
     val monedas: MonedaInfo? = null
+)
+
+@Serializable
+data class PerfilAdmin(
+    val id: String,
+    @SerialName("nombre_completo") val nombreCompleto: String,
+    @SerialName("rol_id") val rolId: Long,
+    val estado: String = "Activo" // Activo, Bloqueado
+)
+
+@Serializable
+data class BitacoraEntry(
+    val id: Long? = null,
+    val accion: String,
+    val descripcion: String,
+    val responsable: String,
+    @SerialName("fecha_hora") val fechaHora: String
+)
+
+@Serializable
+data class ResumenOperaciones(
+    val totalComprasHoy: Double,
+    val totalVentasHoy: Double
 )
