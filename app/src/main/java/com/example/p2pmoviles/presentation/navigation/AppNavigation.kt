@@ -9,6 +9,7 @@ import com.example.p2pmoviles.presentation.auth.AuthViewModel
 import com.example.p2pmoviles.presentation.auth.LoginScreen
 import com.example.p2pmoviles.presentation.auth.RegistroScreen
 import com.example.p2pmoviles.presentation.home.HomeScreen
+import com.example.p2pmoviles.presentation.main.MainContainerScreen
 import com.example.p2pmoviles.presentation.menu.MenuScreen
 import com.example.p2pmoviles.presentation.receipt.UploadReceiptScreen
 import com.example.p2pmoviles.presentation.transactions.TransactionsScreen
@@ -38,7 +39,7 @@ fun AppNavigation(authViewModel: AuthViewModel) {
                             popUpTo(Routes.Login.route) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(Routes.Menu.route) {
+                        navController.navigate("main_container") {
                             popUpTo(Routes.Login.route) { inclusive = true }
                         }
                     }
@@ -56,22 +57,18 @@ fun AppNavigation(authViewModel: AuthViewModel) {
         }
 
         // --- MENÚ PRINCIPAL ---
-        composable(Routes.Menu.route) {
-            MenuScreen(
-                onNavigateToWallet = { navController.navigate(Routes.Wallet.route) },
-                onNavigateToHome = { navController.navigate(Routes.Home.route) },
-                onNavigateToMarket = { navController.navigate(Routes.MercadoP2P.route) },
-                onNavigateToPostOffer = { navController.navigate(Routes.PublicarOferta.route) },
-                onNavigateToHistory = { navController.navigate(Routes.Transactions.route) },
-                onNavigateToUploadReceipt = { navController.navigate(Routes.UploadReceipt.route) },
-                onLogout = {
+        composable("main_container") {
+            MainContainerScreen(
+                authViewModel = authViewModel,
+                onLogoutSuccess = {
+                    // Cuando la corrutina limpie el ID y el token, lo saca al Login limpiando el árbol
                     navController.navigate(Routes.Login.route) {
-                        popUpTo(0)
+                        popUpTo("main_container") { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
         }
-
         // --- PANTALLAS DE USUARIO ---
         composable(Routes.Wallet.route) {
             UserWalletScreen(

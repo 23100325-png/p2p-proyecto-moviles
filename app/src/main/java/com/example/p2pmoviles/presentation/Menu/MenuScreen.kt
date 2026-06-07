@@ -46,13 +46,7 @@ fun MenuScreen(
         MenuButton(text = "Mi Billetera", onClick = onNavigateToWallet)
         Spacer(modifier = Modifier.height(16.dp))
 
-        //MenuButton(text = "Buscar Ofertas (Estilo Home)", onClick = onNavigateToHome)
-        //Spacer(modifier = Modifier.height(16.dp))
-
         MenuButton(text = "Mercado P2P (Filtros)", onClick = onNavigateToMarket)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        MenuButton(text = "Publicar Oferta (Venta)", onClick = onNavigateToPostOffer)
         Spacer(modifier = Modifier.height(16.dp))
 
         MenuButton(text = "Historial de Transacciones", onClick = onNavigateToHistory)
