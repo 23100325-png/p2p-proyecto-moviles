@@ -10,12 +10,11 @@ import com.example.p2pmoviles.presentation.auth.LoginScreen
 import com.example.p2pmoviles.presentation.auth.RegistroScreen
 import com.example.p2pmoviles.presentation.home.HomeScreen
 import com.example.p2pmoviles.presentation.main.MainContainerScreen
-import com.example.p2pmoviles.presentation.menu.MenuScreen
 import com.example.p2pmoviles.presentation.receipt.UploadReceiptScreen
 import com.example.p2pmoviles.presentation.transactions.TransactionsScreen
-import com.example.p2pmoviles.presentation.user.MercadoP2PScreen
-import com.example.p2pmoviles.presentation.user.PublicarOfertaScreen
-import com.example.p2pmoviles.presentation.user.UserWalletScreen
+import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
+import com.example.p2pmoviles.presentation.user.mercadoP2P.oferta.PublicarOfertaScreen
+import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
 
 @Composable
 fun AppNavigation(authViewModel: AuthViewModel) {
@@ -87,17 +86,14 @@ fun AppNavigation(authViewModel: AuthViewModel) {
         composable(Routes.MercadoP2P.route) {
             MercadoP2PScreen(
                 usuarioLogueadoId = userId,
-                onBackClick = { navController.popBackStack() },
-                onNavegarAPublicarClick = {
-                    navController.navigate(Routes.PublicarOferta.route)
-                }
+                onBackClick = { navController.popBackStack() }
             )
         }
 
         composable(Routes.PublicarOferta.route) {
             PublicarOfertaScreen(
                 usuarioLogueadoId = userId,
-                onBackClick = { navController.popBackStack() }
+                //onBackClick = { navController.popBackStack() }
             )
         }
 

@@ -21,7 +21,7 @@ data class OfertaInsert(
     @SerialName("moneda_destino_id") val monedaDestinoId: Long,
     @SerialName("monto_origen") val montoOrigen: Double,
     @SerialName("tasa_cambio") val tasaCambio: Double,
-    @SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
+    //@SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
     @SerialName("estado") val estado: String = "PENDIENTE",
     @SerialName("fecha_publicacion") val fechaPublicacion: String
 )@Serializable
@@ -32,14 +32,14 @@ data class OfertaMercado(
     @SerialName("moneda_destino_id") val monedaDestinoId: Long,
     @SerialName("monto_origen") val montoOrigen: Double,
     @SerialName("tasa_cambio") val tasaCambio: Double,
-    @SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
+    //@SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
     @SerialName("estado") val estado: String,
     @SerialName("fecha_publicacion") val fechaPublicacion: String,
 
     // Estos campos vendrán mapeados por el JOIN de Supabase
     // Si tu estructura de perfiles maneja otros nombres, los adaptamos
     @SerialName("usuarios") val ofertanteInfo: OfertantePerfil? = null,
-    @SerialName("cuentas_bancarias") val bancoInfo: CuentaBancariaInfo? = null
+    //@SerialName("cuentas_bancarias") val bancoInfo: CuentaBancariaInfo? = null
 )
 
 @Serializable

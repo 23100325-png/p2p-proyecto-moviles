@@ -20,7 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.p2pmoviles.presentation.user.MercadoP2PViewModel
+import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PViewModel
 import com.example.p2pmoviles.ui.theme.BinanceBackground
 import com.example.p2pmoviles.ui.theme.BinanceTextPrimary
 import com.example.p2pmoviles.ui.theme.BinanceTextSecondary

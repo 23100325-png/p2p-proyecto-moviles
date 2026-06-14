@@ -1,4 +1,4 @@
-package com.example.p2pmoviles.presentation.user
+package com.example.p2pmoviles.presentation.user.billetera
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.p2pmoviles.data.model.BilleteraUsuario
 import com.example.p2pmoviles.data.model.MonedaInfo
+import com.example.p2pmoviles.presentation.user.DropdownBancosCustom
 import com.example.p2pmoviles.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -62,15 +63,6 @@ fun UserWalletScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Billetera P2P", color = BinanceTextPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = BinanceTextPrimary
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
             )
         },
@@ -170,21 +162,19 @@ fun UserWalletScreen(
                         if (mostrarDialogRetiro) {
                             DialogRetiro(
                                 billeteras = state.billeteras,
+                                viewModel = viewModel,
                                 onDismiss = { mostrarDialogRetiro = false },
-                                onConfirm = { idMoneda, monto ->
+                                onConfirm = { idMoneda, monto, idCuentaBancaria ->
                                     viewModel.realizarRetiro(
                                         monedaId = idMoneda,
                                         monto = monto,
+                                        cuentaBancariaId = idCuentaBancaria, // 🟢 Pasamos el ID del banco seleccionado
                                         onError = { mensajeError ->
-                                            // Si el trigger de saldo insuficiente salta, se muestra aquí el error en rojo
                                             scope.launch {
-                                                snackbarHostState.showSnackbar(
-                                                    mensajeError
-                                                )
+                                                snackbarHostState.showSnackbar(mensajeError)
                                             }
                                         },
                                         onSuccess = {
-                                            // Si pasa el trigger, avisa del éxito
                                             scope.launch { snackbarHostState.showSnackbar("¡Solicitud de retiro enviada! Tus fondos han sido reservados.") }
                                             mostrarDialogRetiro = false
                                         }
@@ -327,23 +317,47 @@ fun DialogRecarga(
     }
 }
 
-// 🔴 VENTANA FLOTANTE 2: RETIROS
+
+// 🔴 VENTANA FLOTANTE 2: RETIROS CON SELECCIÓN DE BANCO
 @Composable
 fun DialogRetiro(
     billeteras: List<BilleteraUsuario>,
+    viewModel: UserWalletViewModel, // Inyectamos el ViewModel para leer o filtrar las cuentas registradas
     onDismiss: () -> Unit,
-    onConfirm: (Long, Double) -> Unit
+    onConfirm: (Long, Double, Long) -> Unit // Ahora retorna: MonedaId, Monto, CuentaBancariaId
 ) {
     var montoText by remember { mutableStateOf("") }
     var billeteraSeleccionada by remember { mutableStateOf(billeteras.firstOrNull()) }
-    var menuExpandido by remember { mutableStateOf(false) }
+    var menuExpandidoMoneda by remember { mutableStateOf(false) }
+
+    // Control del Modal secundario de Bancos
+    var mostrarModalBancos by remember { mutableStateOf(false) }
+
+    // Obtenemos las cuentas bancarias del usuario directamente desde el estado del ViewModel
+    // Nota: Asegúrate de tener expuesto un StateFlow con las cuentas del usuario en tu UserWalletViewModel
+    val todasLasCuentas by viewModel.cuentasBancariasUsuario.collectAsState(initial = emptyList())
+
+    // Filtramos en tiempo real para que solo aparezcan cuentas que coincidan con la moneda elegida
+    val bancosFiltrados = todasLasCuentas.filter { it.monedaId == billeteraSeleccionada?.monedaId }
+    var cuentaBancariaSeleccionada by remember { mutableStateOf<com.example.p2pmoviles.data.model.CuentaBancaria?>(null) }
+
+    // Reiniciar banco seleccionado si el usuario cambia de moneda para evitar inconsistencias
+    LaunchedEffect(billeteraSeleccionada) {
+        cuentaBancariaSeleccionada = null
+    }
 
     val disponible = billeteraSeleccionada?.saldoDisponible ?: 0.0
     val montoIngresado = montoText.toDoubleOrNull() ?: 0.0
     val esMontoValido = montoIngresado in 0.01..disponible
 
+    // El botón final solo se activa si el monto es válido Y seleccionó un banco receptor
+    val formularioListo = esMontoValido && cuentaBancariaSeleccionada != null
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(colors = CardDefaults.cardColors(containerColor = BinanceInputBackground), shape = RoundedCornerShape(12.dp)) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = BinanceInputBackground),
+            shape = RoundedCornerShape(12.dp)
+        ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Solicitar Retiro", color = BinanceTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -351,23 +365,27 @@ fun DialogRetiro(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Box(modifier = Modifier.fillMaxWidth().background(BinanceBackground, RoundedCornerShape(4.dp)).clickable { menuExpandido = true }.padding(12.dp)) {
+                // Selector de Moneda
+                Text(text = "Moneda a retirar", color = BinanceTextSecondary, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Box(modifier = Modifier.fillMaxWidth().background(BinanceBackground, RoundedCornerShape(4.dp)).clickable { menuExpandidoMoneda = true }.padding(12.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(billeteraSeleccionada?.monedas?.nombre ?: "Seleccionar Moneda", color = BinanceTextPrimary)
                         Icon(Icons.Default.ArrowDropDown, null, tint = BinanceYellow)
                     }
-                    DropdownMenu(expanded = menuExpandido, onDismissRequest = { menuExpandido = false }, modifier = Modifier.background(BinanceInputBackground)) {
+                    DropdownMenu(expanded = menuExpandidoMoneda, onDismissRequest = { menuExpandidoMoneda = false }, modifier = Modifier.background(BinanceInputBackground)) {
                         billeteras.forEach { b ->
                             DropdownMenuItem(
                                 text = { Text(b.monedas?.nombre ?: "", color = BinanceTextPrimary) },
-                                onClick = { billeteraSeleccionada = b; menuExpandido = false }
+                                onClick = { billeteraSeleccionada = b; menuExpandidoMoneda = false }
                             )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                // Campo informativo de Saldo Disponible Exclusivo
+
+                // Campo informativo de Saldo Disponible
                 Text(
                     text = "Disponible para retirar: ${billeteraSeleccionada?.monedas?.simbolo ?: ""} ${String.format("%.2f", disponible)}",
                     color = BinanceYellow,
@@ -375,13 +393,16 @@ fun DialogRetiro(
                     fontWeight = FontWeight.Medium
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Entrada del Monto numérico
                 OutlinedTextField(
                     value = montoText,
                     onValueChange = { montoText = it },
                     label = { Text("Monto a retirar", color = BinanceTextSecondary) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = !esMontoValido && montoText.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = BinanceTextPrimary, unfocusedTextColor = BinanceTextPrimary, focusedBorderColor = BinanceYellow)
                 )
 
@@ -389,16 +410,77 @@ fun DialogRetiro(
                     Text("El monto excede tu saldo disponible.", color = BinanceError, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 🟢 INTEGRACIÓN DEL DROPDOWN DE BANCOS CUSTOM
+                DropdownBancosCustom(
+                    bancoSeleccionado = cuentaBancariaSeleccionada?.banco,
+                    monedaCodigo = billeteraSeleccionada?.monedas?.codigoIso,
+                    monedaNombre = billeteraSeleccionada?.monedas?.nombre,
+                    onDesplegarClick = { mostrarModalBancos = true }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Botón de Confirmación
                 Button(
-                    onClick = { onConfirm(billeteraSeleccionada!!.monedaId, montoIngresado) },
-                    enabled = esMontoValido,
-                    colors = ButtonDefaults.buttonColors(containerColor = BinanceError),
+                    onClick = {
+                        if (billeteraSeleccionada != null && cuentaBancariaSeleccionada != null) {
+                            onConfirm(billeteraSeleccionada!!.monedaId, montoIngresado, cuentaBancariaSeleccionada!!.id)
+                        }
+                    },
+                    enabled = formularioListo,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BinanceError,
+                        disabledContainerColor = BinanceTextSecondary.copy(alpha = 0.3f),
+                        contentColor = Color.White,
+                        disabledContentColor = BinanceTextSecondary
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Confirmar Retiro", color = Color.White)
+                    Text("Confirmar Retiro", fontWeight = FontWeight.Bold)
                 }
             }
         }
+    }
+
+    // Modal Flotante Secundario para listar las cuentas bancarias filtradas por moneda
+    if (mostrarModalBancos) {
+        AlertDialog(
+            onDismissRequest = { mostrarModalBancos = false },
+            confirmButton = {},
+            containerColor = BinanceInputBackground,
+            title = { Text("Selecciona tu cuenta bancaria", color = BinanceTextPrimary, fontSize = 16.sp) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (bancosFiltrados.isEmpty()) {
+                        Text(
+                            text = "No tienes cuentas bancarias registradas en ${billeteraSeleccionada?.monedas?.codigoIso ?: ""}. Agrégalas en tu configuración de perfil.",
+                            color = BinanceError,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        bancosFiltrados.forEach { cuenta ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        cuentaBancariaSeleccionada = cuenta
+                                        mostrarModalBancos = false
+                                    }
+                                    .padding(vertical = 10.dp)
+                            ) {
+                                Text(text = cuenta.banco, color = BinanceTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(text = "Nº: ${cuenta.numeroCuenta}", color = BinanceTextSecondary, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Divider(color = BinanceTextSecondary.copy(alpha = 0.1f))
+                            }
+                        }
+                    }
+                }
+            }
+        )
     }
 }

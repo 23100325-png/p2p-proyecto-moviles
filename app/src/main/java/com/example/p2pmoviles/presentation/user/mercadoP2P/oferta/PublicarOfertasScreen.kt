@@ -1,4 +1,4 @@
-package com.example.p2pmoviles.presentation.user
+package com.example.p2pmoviles.presentation.user.mercadoP2P.oferta
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
@@ -18,10 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.p2pmoviles.presentation.user.DropdownMonedasCustom
 import kotlinx.coroutines.launch
 import com.example.p2pmoviles.ui.theme.*
 
@@ -29,7 +28,7 @@ import com.example.p2pmoviles.ui.theme.*
 @Composable
 fun PublicarOfertaScreen(
     usuarioLogueadoId: String,
-    onBackClick: () -> Unit = {},
+    //onBackClick: () -> Unit = {},
     ofertasViewModel: OfertasViewModel = viewModel()
 ) {
     // Inicializamos los catálogos en el ViewModel con el ID del usuario
@@ -41,19 +40,24 @@ fun PublicarOfertaScreen(
     val billeterasUsuario by ofertasViewModel.billeterasUsuario.collectAsState()
     val monedasGlobales by ofertasViewModel.monedasGlobales.collectAsState()
 
+    val tasaReferencial by ofertasViewModel.tipoCambioReferencial.collectAsState()
     val monedaTengoSelected by ofertasViewModel.monedaTengo.collectAsState()
     val monedaQuieroSelected by ofertasViewModel.monedaQuiero.collectAsState()
+    LaunchedEffect(monedaTengoSelected, monedaQuieroSelected) {
+        // Solo si ambas monedas ya cargaron desde Supabase, llamamos a la API de tipo de cambio
+        if (monedaTengoSelected != null && monedaQuieroSelected != null) {
+            ofertasViewModel.obtenerTipoCambioReal()
+        }
+    }
 
     val montoText by ofertasViewModel.montoOfertarText.collectAsState()
     val tipoCambioText by ofertasViewModel.tipoCambioText.collectAsState()
-    val bancoSelected by ofertasViewModel.cuentaBancariaSeleccionada.collectAsState()
     val notasText by ofertasViewModel.notasAdicionalesText.collectAsState()
     val terminosCheck by ofertasViewModel.terminosAceptados.collectAsState()
 
     // --- Control de Diálogos Flotantes de Selección ---
     var mostrarDialogoTengo by remember { mutableStateOf(false) }
     var mostrarDialogoQuiero by remember { mutableStateOf(false) }
-    var mostrarDialogoBanco by remember { mutableStateOf(false) }
 
     // --- Control de Notificaciones en Pantalla (Snackbars) ---
     val snackbarHostState = remember { SnackbarHostState() }
@@ -63,29 +67,12 @@ fun PublicarOfertaScreen(
     val cambioDouble = tipoCambioText.toDoubleOrNull() ?: 0.0
     val totalRecibiria = montoDouble * cambioDouble
 
-    // --- VALIDADOR COMPLETO DEL BOTÓN ---
-    // El botón sólo se habilitará si todos los campos requeridos están llenos Y el checkbox es verdadero
+    // --- VALIDADOR COMPLETO DEL BOTÓN (Bancos removidos) ---
     val camposCompletos = montoText.isNotEmpty() &&
             tipoCambioText.isNotEmpty() &&
-            bancoSelected != null &&
             terminosCheck
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = BinanceTextPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
-            )
-        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = BinanceBackground
     ) { paddingValues ->
@@ -94,17 +81,8 @@ fun PublicarOfertaScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()) // Permite deslizar si la pantalla es pequeña
+                .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Título de la pantalla tal cual tu imagen
-            Text(
-                text = "Publicar oferta",
-                color = BinanceTextPrimary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
             Text(
                 text = "Crea tu oferta de compra o venta de divisas P2P",
                 color = BinanceTextSecondary,
@@ -121,7 +99,7 @@ fun PublicarOfertaScreen(
                 Icon(Icons.Default.Info, contentDescription = null, tint = BinanceTextSecondary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Estás creando una oferta para vender divisas.",
+                    text = "Estás creando una oferta directa entre billeteras del sistema.",
                     color = BinanceTextSecondary,
                     fontSize = 12.sp
                 )
@@ -141,7 +119,7 @@ fun PublicarOfertaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. Calculamos en vivo si el monto ingresado supera al saldo disponible
+            // Validación de saldo en vivo
             val montoIngresado = montoText.toDoubleOrNull() ?: 0.0
             val saldoDisponible = monedaTengoSelected?.saldoDisponible ?: 0.0
             val esMontoInvalido = montoIngresado > saldoDisponible
@@ -153,7 +131,6 @@ fun PublicarOfertaScreen(
                 value = montoText,
                 onValueChange = { ofertasViewModel.montoOfertarText.value = it },
                 modifier = Modifier.fillMaxWidth(),
-                // 🟢 CLAVE 1: Indicamos al TextField que cambie a estado de error si se pasa del saldo
                 isError = esMontoInvalido,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = BinanceInputBackground,
@@ -162,7 +139,6 @@ fun PublicarOfertaScreen(
                     unfocusedBorderColor = BinanceTextSecondary.copy(alpha = 0.2f),
                     focusedTextColor = BinanceTextPrimary,
                     unfocusedTextColor = BinanceTextPrimary,
-                    // 🟢 CLAVE 2: Definimos los colores cuando ocurra un error (estilo Binance)
                     errorContainerColor = BinanceInputBackground,
                     errorBorderColor = BinanceError,
                     errorTextColor = BinanceTextPrimary,
@@ -181,7 +157,6 @@ fun PublicarOfertaScreen(
                 }
             )
 
-// 🟢 CLAVE 3: Alerta dinámica debajo del cuadro si el saldo es insuficiente
             if (esMontoInvalido) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -193,7 +168,7 @@ fun PublicarOfertaScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Selector "QUIERO"
+            // 2. Selector "QUIERO"
             DropdownMonedasCustom(
                 titulo = "Quiero",
                 monedaSeleccionadaNombre = monedaQuieroSelected?.nombre,
@@ -204,10 +179,39 @@ fun PublicarOfertaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Campo del Precio (Tasa de Cambio Dinámica)
-            val placeholderPrecio = "Precio por 1 ${monedaTengoSelected?.monedas?.codigoIso ?: "USD"} (en ${monedaQuieroSelected?.codigoIso ?: "PEN"})"
-            Text(text = placeholderPrecio, color = BinanceTextSecondary, fontSize = 14.sp)
+            // 3. Fila del Título del Precio y la Tasa Referencial de la API
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Primera mitad: Título del campo
+                val placeholderPrecio = "Precio por 1 ${monedaTengoSelected?.monedas?.codigoIso ?: "PEN"} (en ${monedaQuieroSelected?.codigoIso ?: "USD"})"
+                Text(
+                    text = placeholderPrecio,
+                    color = BinanceTextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Segunda mitad: Tasa Referencial (Muestra el valor o un aviso de carga)
+                Text(
+                    text = if (tasaReferencial != null && !tasaReferencial!!.contains("⏳") && !tasaReferencial!!.contains("❌")) {
+                        tasaReferencial!!
+                    } else {
+                        "⏳ Conectando API..."
+                    },
+                    color = if (tasaReferencial?.startsWith("💡") == true) BinanceYellow else BinanceTextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
             Spacer(modifier = Modifier.height(6.dp))
+
+// El campo OutlinedTextField se mantiene abajo ocupando todo el ancho de forma normal
             OutlinedTextField(
                 value = tipoCambioText,
                 onValueChange = { ofertasViewModel.tipoCambioText.value = it },
@@ -235,8 +239,8 @@ fun PublicarOfertaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 5. Campo Gris Bloqueado "RECIBIRÍA" (Matemática Automática)
-            Text(text = "Monto a recibir", color = BinanceTextSecondary, fontSize = 14.sp)
+            // 4. Campo "RECIBIRÍA AUTOMÁTICAMENTE" (Billetera Destino Interna)
+            Text(text = "Monto a recibir (en tu billetera de la app)", color = BinanceTextSecondary, fontSize = 14.sp)
             Spacer(modifier = Modifier.height(6.dp))
             Box(
                 modifier = Modifier
@@ -266,17 +270,7 @@ fun PublicarOfertaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 6. Selector de Banco Filtrado
-            DropdownBancosCustom(
-                bancoSeleccionado = bancoSelected?.banco,
-                monedaCodigo = monedaQuieroSelected?.codigoIso,
-                monedaNombre = monedaQuieroSelected?.nombre,
-                onDesplegarClick = { mostrarDialogoBanco = true }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 7. Notas Adicionales (Opcional)
+            // 5. Notas Adicionales
             Text(text = "Notas adicionales (opcional)", color = BinanceTextSecondary, fontSize = 14.sp)
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
@@ -292,12 +286,12 @@ fun PublicarOfertaScreen(
                     unfocusedTextColor = BinanceTextPrimary
                 ),
                 shape = RoundedCornerShape(8.dp),
-                placeholder = { Text("Ej: Solo pagos desde mi banco. Nada de terceros.", color = BinanceTextSecondary, fontSize = 13.sp) }
+                placeholder = { Text("Ej: Intercambio automático instantáneo sin comisiones.", color = BinanceTextSecondary, fontSize = 13.sp) }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 8. Escudo de Consejos de Seguridad calcado de tu imagen
+            // Escudo de Consejos de Seguridad
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -308,14 +302,14 @@ fun PublicarOfertaScreen(
                 Icon(Icons.Default.Security, contentDescription = null, tint = BinanceYellow, modifier = Modifier.size(28.dp))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Consejos de seguridad", color = BinanceYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("No aceptes pagos de terceros ni realices operaciones fuera de la plataforma.", color = BinanceTextSecondary, fontSize = 12.sp)
+                    Text("Seguridad de Billetera Integrada", color = BinanceYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Los fondos se descuentan e ingresan directamente en los saldos internos de la app de forma 100% regulada.", color = BinanceTextSecondary, fontSize = 12.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 9. Botón Principal con validación de color
+            // Botón Principal
             Button(
                 onClick = {
                     ofertasViewModel.publicarOferta(
@@ -324,7 +318,7 @@ fun PublicarOfertaScreen(
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = camposCompletos,
+                enabled = camposCompletos && !esMontoInvalido,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BinanceYellow,
                     disabledContainerColor = BinanceTextSecondary.copy(alpha = 0.3f),
@@ -338,7 +332,7 @@ fun PublicarOfertaScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 10. Checkbox Obligatorio de Términos y Condiciones debajo del botón
+            // Checkbox Obligatorio
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -362,7 +356,7 @@ fun PublicarOfertaScreen(
     }
 
     // =========================================================================
-    // MODALES / DIÁLOGOS DE SELECCIÓN DE SUPABASE FLOTANTES
+    // MODALES / DIÁLOGOS DE SELECCIÓN FLOTANTES
     // =========================================================================
 
     // A. Modal para elegir "Tengo"
@@ -395,7 +389,7 @@ fun PublicarOfertaScreen(
         )
     }
 
-    // B. Modal para elegir "Quiero" (Excluye la moneda de "Tengo")
+    // B. Modal para elegir "Quiero"
     if (mostrarDialogoQuiero) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoQuiero = false },
@@ -417,48 +411,6 @@ fun PublicarOfertaScreen(
                         ) {
                             Text(mon.codigoIso, color = BinanceYellow, fontWeight = FontWeight.Bold, modifier = Modifier.width(50.dp))
                             Text(mon.nombre, color = BinanceTextPrimary)
-                        }
-                    }
-                }
-            }
-        )
-    }
-
-    // C. Modal para elegir Cuentas Bancarias FILTRADAS
-    if (mostrarDialogoBanco) {
-        val bancosFiltrados = ofertasViewModel.obtenerCuentasFiltradas()
-        AlertDialog(
-            onDismissRequest = { mostrarDialogoBanco = false },
-            confirmButton = {},
-            containerColor = BinanceInputBackground,
-            title = { Text("Selecciona tu banco de recepción", color = BinanceTextPrimary, fontSize = 18.sp) },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (bancosFiltrados.isEmpty()) {
-                        Text(
-                            text = "No tienes cuentas bancarias registradas para recibir ${monedaQuieroSelected?.codigoIso ?: ""}. Regístralas en tu perfil.",
-                            color = BinanceError,
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp
-                        )
-                    } else {
-                        bancosFiltrados.forEach { cuenta ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        ofertasViewModel.cuentaBancariaSeleccionada.value = cuenta
-                                        mostrarDialogoBanco = false
-                                    }
-                                    .padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(cuenta.banco, color = BinanceTextPrimary, fontWeight = FontWeight.Bold)
-                                    Text("Nº: ${cuenta.numeroCuenta}", color = BinanceTextSecondary, fontSize = 12.sp)
-                                    Text("Titular: ${cuenta.titularNombre}", color = BinanceTextSecondary, fontSize = 12.sp)
-                                }
-                            }
                         }
                     }
                 }

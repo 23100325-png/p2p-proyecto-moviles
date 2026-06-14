@@ -29,7 +29,7 @@ fun OfferCard(
     val nombreUsuario = oferta.ofertanteInfo?.nombre ?: "Usuario"
     val inicial = nombreUsuario.take(1).uppercase()
     val rating = "${oferta.ofertanteInfo?.calificacion ?: 5.0} (${oferta.ofertanteInfo?.totalOperaciones ?: 100})"
-    val paymentMethod = oferta.bancoInfo?.banco ?: "Transferencia"
+    //val paymentMethod = oferta.bancoInfo?.banco ?: "Transferencia"
 
     Row(
         modifier = Modifier
@@ -58,7 +58,7 @@ fun OfferCard(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text("Método de pago", color = SoftText, fontSize = 11.sp)
-            Text(paymentMethod, color = Color.White, fontSize = 13.sp)
+            //Text(paymentMethod, color = Color.White, fontSize = 13.sp)
         }
 
         Column(horizontalAlignment = Alignment.End) {

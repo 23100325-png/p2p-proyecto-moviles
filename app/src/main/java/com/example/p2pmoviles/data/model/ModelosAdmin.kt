@@ -25,3 +25,17 @@ data class MovimientoAdmin(
     // Aquí recibimos la relación de la tabla 'monedas' anidada
     val monedas: MonedaInfo? = null
 )
+
+@Serializable
+data class PerfilAdmin(
+    val id: String,
+    @SerialName("nombre_completo") val nombreCompleto: String,
+    val estado: String,
+    @SerialName("rol_id") val rolId: Int
+)
+
+@Serializable
+data class ResumenOperaciones(
+    val totalComprasHoy: Double,
+    val totalVentasHoy: Double
+)

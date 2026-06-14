@@ -18,9 +18,9 @@ data class BilleteraUsuario(
 data class SolicitudFondoInsert(
     @SerialName("usuario_id") val usuarioId: String,
     @SerialName("moneda_id") val monedaId: Long,
-    @SerialName("tipo_movimiento") val tipoMovimiento: String, // "RECARGA" o "RETIRO"
-    val monto: Double,
+    @SerialName("tipo_movimiento") val tipoMovimiento: String,
+    @SerialName("monto") val monto: Double,
     @SerialName("ruta_voucher") val rutaVoucher: String?,
-    val estado: String = "PENDIENTE",
-    @SerialName("fecha_solicitud") val fechaSolicitud: String
+    @SerialName("fecha_solicitud") val fechaSolicitud: String,
+    @SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long? = null // 👈 AGREGA ESTO SI FALTA
 )

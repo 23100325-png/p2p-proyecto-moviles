@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.p2pmoviles.presentation.user.MercadoP2PViewModel
+import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PViewModel
 
 private val CardBg = Color(0xFF151A20)
 private val Yellow = Color(0xFFFFC400)

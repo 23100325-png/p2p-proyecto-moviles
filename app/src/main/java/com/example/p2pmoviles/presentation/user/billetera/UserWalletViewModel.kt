@@ -1,4 +1,4 @@
-package com.example.p2pmoviles.presentation.user
+package com.example.p2pmoviles.presentation.user.billetera
 
 import android.net.Uri
 import android.util.Log
@@ -6,12 +6,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.p2pmoviles.data.SupabaseClient
 import com.example.p2pmoviles.data.model.BilleteraUsuario
+import com.example.p2pmoviles.data.model.CuentaBancaria // 🟢 Asegúrate de tener este import
 import com.example.p2pmoviles.data.model.MonedaInfo
 import com.example.p2pmoviles.data.model.SolicitudFondoInsert
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -29,20 +32,27 @@ class UserWalletViewModel : ViewModel() {
     private val _listaMonedasGlobales = MutableStateFlow<List<MonedaInfo>>(emptyList())
     val listaMonedasGlobales: StateFlow<List<MonedaInfo>> = _listaMonedasGlobales
 
-    // 🟢 AGREGA ESTO EN TU USERWALLETVIEWMODEL (junto a tus otras variables de estado)
     private val _estaRefrescando = MutableStateFlow(false)
     val estaRefrescando: StateFlow<Boolean> = _estaRefrescando
 
-    // Reemplaza esto con el ID real del usuario logueado (puedes pasarlo desde el AuthViewModel)
+    // 🟢 NUEVO: Estado para almacenar y exponer las cuentas bancarias del usuario
+    private val _cuentasBancariasUsuario = MutableStateFlow<List<CuentaBancaria>>(emptyList())
+    val cuentasBancariasUsuario: StateFlow<List<CuentaBancaria>> = _cuentasBancariasUsuario.asStateFlow()
+
     private var usuarioLogueadoId: String = ""
+
+    fun inicializarUsuario(id: String) {
+        usuarioLogueadoId = id
+        obtenerBilleteras()
+        obtenerMonedasExistentes()
+        obtenerCuentasBancarias() // 🟢 Cargamos las cuentas al iniciar
+    }
 
     fun obtenerMonedasExistentes() {
         viewModelScope.launch {
             try {
-                // Consultamos directamente la tabla de monedas generales
                 val result = SupabaseClient.client.postgrest["monedas"]
                     .select().decodeList<MonedaInfo>()
-
                 _listaMonedasGlobales.value = result
             } catch (e: Exception) {
                 Log.e("UserWalletVM", "Error al cargar el catálogo de monedas", e)
@@ -50,20 +60,29 @@ class UserWalletViewModel : ViewModel() {
         }
     }
 
-    fun inicializarUsuario(id: String) {
-        usuarioLogueadoId = id
-        obtenerBilleteras()
-        obtenerMonedasExistentes()
+    // 🟢 NUEVO: Función para traer las cuentas bancarias desde Supabase
+    fun obtenerCuentasBancarias() {
+        if (usuarioLogueadoId.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val result = SupabaseClient.client.postgrest["cuentas_bancarias"]
+                    .select {
+                        filter { eq("usuario_id", usuarioLogueadoId) }
+                    }.decodeList<CuentaBancaria>()
+                _cuentasBancariasUsuario.value = result
+            } catch (e: Exception) {
+                Log.e("UserWalletVM", "Error al cargar cuentas bancarias", e)
+            }
+        }
     }
 
     fun obtenerBilleteras() {
         if (usuarioLogueadoId.isEmpty()) return
         viewModelScope.launch {
-            // Si ya hay datos y es un refresco manual, activamos la animación superior
             _estaRefrescando.value = true
             try {
                 val result = SupabaseClient.client.postgrest["billeteras"]
-                    .select(columns = io.github.jan.supabase.postgrest.query.Columns.raw("*, monedas(*)")) {
+                    .select(columns = Columns.raw("*, monedas(*)")) {
                         filter { eq("usuario_id", usuarioLogueadoId) }
                     }.decodeList<BilleteraUsuario>()
 
@@ -72,24 +91,23 @@ class UserWalletViewModel : ViewModel() {
                 Log.e("UserWalletVM", "Error al cargar saldos", e)
                 _uiState.value = UserWalletState.Error("No se pudieron cargar los saldos.")
             } finally {
-                // 🟢 Al terminar la consulta (sea éxito o error), apagamos la animación de jalar
                 _estaRefrescando.value = false
             }
         }
     }
+
     fun realizarRecarga(
         monedaId: Long,
         monto: Double,
         imageUri: Uri?,
         byteArray: ByteArray?,
-        onError: (String) -> Unit,    // 🟢 ESTO ES LO QUE EL COMPILADOR DICE QUE FALTA
-        onSuccess: (String) -> Unit   // 🟢 ESTO ES LO QUE EL COMPILADOR DICE QUE FALTA
+        onError: (String) -> Unit,
+        onSuccess: (String) -> Unit
     ) {
         viewModelScope.launch {
             try {
                 var rutaPublicaVoucher: String? = null
 
-                // 1. Proceso de Almacenamiento protegido
                 if (byteArray != null && imageUri != null) {
                     try {
                         val nombreArchivo = "voucher_${usuarioLogueadoId}_${Instant.now().toEpochMilli()}.jpg"
@@ -103,19 +121,18 @@ class UserWalletViewModel : ViewModel() {
                     }
                 }
 
-                // 2. Proceso de Inserción
                 val nuevaSolicitud = SolicitudFondoInsert(
                     usuarioId = usuarioLogueadoId,
                     monedaId = monedaId,
                     tipoMovimiento = "RECARGA",
                     monto = monto,
                     rutaVoucher = rutaPublicaVoucher,
-                    fechaSolicitud = java.time.Instant.now().toString()
+                    fechaSolicitud = Instant.now().toString()
+                    // cuentaBancariaId = null // (Opcional o nulo para recargas si tu modelo lo maneja)
                 )
 
                 SupabaseClient.client.postgrest["movimientos_fondos"].insert(nuevaSolicitud)
 
-                // 3. Notificar éxito a la pantalla
                 onSuccess("¡Solicitud de recarga enviada con éxito! Esperando aprobación.")
                 obtenerBilleteras()
 
@@ -126,7 +143,14 @@ class UserWalletViewModel : ViewModel() {
         }
     }
 
-    fun realizarRetiro(monedaId: Long, monto: Double, onError: (String) -> Unit, onSuccess: () -> Unit) {
+    // 🟢 MODIFICADO: Ahora recibe cuentaBancariaId y su onSuccess maneja String para el Snackbar
+    fun realizarRetiro(
+        monedaId: Long,
+        monto: Double,
+        cuentaBancariaId: Long,
+        onError: (String) -> Unit,
+        onSuccess: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val nuevaSolicitud = SolicitudFondoInsert(
@@ -134,20 +158,19 @@ class UserWalletViewModel : ViewModel() {
                     monedaId = monedaId,
                     tipoMovimiento = "RETIRO",
                     monto = monto,
-                    rutaVoucher = null, // Retiros no llevan voucher
-                    fechaSolicitud = Instant.now().toString()
+                    rutaVoucher = null,
+                    fechaSolicitud = Instant.now().toString(),
+                    cuentaBancariaId = cuentaBancariaId // 🟢 Enviamos la cuenta destino seleccionada
                 )
 
                 SupabaseClient.client.postgrest["movimientos_fondos"].insert(nuevaSolicitud)
-                onSuccess()
-                obtenerBilleteras() // Actualiza los saldos (Disponible y Bloqueado cambian por el Trigger)
+
+                onSuccess("¡Solicitud de retiro enviada! Tus fondos han sido reservados.")
+                obtenerBilleteras()
             } catch (e: Exception) {
                 Log.e("UserWalletVM", "Error en retiro", e)
-                // Si el trigger de saldo insuficiente salta, capturamos el mensaje de error de Supabase
                 onError(e.localizedMessage ?: "Error al procesar el retiro")
             }
         }
     }
-
-
 }

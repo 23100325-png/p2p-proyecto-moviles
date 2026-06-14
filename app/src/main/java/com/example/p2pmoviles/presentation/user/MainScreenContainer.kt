@@ -9,6 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
+import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
+import com.example.p2pmoviles.presentation.user.mercadoP2P.oferta.PublicarOfertaScreen
 import com.example.p2pmoviles.ui.theme.*
 
 @Composable
@@ -81,9 +84,7 @@ fun MainScreenContainer(usuarioLogueadoId: String) {
                 1 -> {
                     if (subPantallaP2P == "buscar") {
                         MercadoP2PScreen(
-                            usuarioLogueadoId = usuarioLogueadoId,
-                            onNavegarAPublicarClick = { subPantallaP2P = "publicar" }
-                        )
+                            usuarioLogueadoId = usuarioLogueadoId)
                     } else {
                         // Modificamos levemente la llamada de tu pantalla anterior para que pueda regresar
                         PublicarOfertaScreen(usuarioLogueadoId = usuarioLogueadoId)

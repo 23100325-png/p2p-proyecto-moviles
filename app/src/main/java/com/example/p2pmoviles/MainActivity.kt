@@ -17,7 +17,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             P2PMovilesTheme {
-                // Delegamos toda la navegación al AppNavigation
                 AppNavigation(authViewModel = authViewModel)
             }
         }

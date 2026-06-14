@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 import com.example.p2pmoviles.presentation.Menu.BottomBarItem
 import com.example.p2pmoviles.presentation.auth.AuthViewModel
 import com.example.p2pmoviles.presentation.transactions.TransactionsScreen
-import com.example.p2pmoviles.presentation.user.MercadoP2PScreen
-import com.example.p2pmoviles.presentation.user.UserWalletScreen
+import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
+import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
 import com.example.p2pmoviles.ui.theme.*
 
 @Composable
@@ -93,12 +93,7 @@ fun MainContainerScreen(
                 is BottomBarItem.MercadoP2P -> {
                     MercadoP2PScreen(
                         usuarioLogueadoId = userId,
-                        onBackClick = { /* Opcional */ },
-                        onNavegarAPublicarClick = {
-                            // Si el usuario le da a "Publicar Oferta" dentro de la pantalla del mercado,
-                            // puedes manejar que se dibuje encima la pantalla del formulario,
-                            // o integrarlo fluidamente.
-                        }
+                        onBackClick = { /* Opcional */ }
                     )
                 }
                 is BottomBarItem.Historial -> {
