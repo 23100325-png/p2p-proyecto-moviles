@@ -32,19 +32,16 @@ data class OfertaMercado(
     @SerialName("moneda_destino_id") val monedaDestinoId: Long,
     @SerialName("monto_origen") val montoOrigen: Double,
     @SerialName("tasa_cambio") val tasaCambio: Double,
-    //@SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
     @SerialName("estado") val estado: String,
     @SerialName("fecha_publicacion") val fechaPublicacion: String,
 
-    // Estos campos vendrán mapeados por el JOIN de Supabase
     // Si tu estructura de perfiles maneja otros nombres, los adaptamos
-    @SerialName("usuarios") val ofertanteInfo: OfertantePerfil? = null,
-    //@SerialName("cuentas_bancarias") val bancoInfo: CuentaBancariaInfo? = null
+    @SerialName("perfiles") val ofertanteInfo: OfertantePerfil? = null,
 )
 
 @Serializable
 data class OfertantePerfil(
-    @SerialName("nombre") val nombre: String,
+    @SerialName("nombre_completo") val nombre: String,
     @SerialName("calificacion") val calificacion: Double = 5.0,
     @SerialName("total_operaciones") val totalOperaciones: Int = 120
 )
