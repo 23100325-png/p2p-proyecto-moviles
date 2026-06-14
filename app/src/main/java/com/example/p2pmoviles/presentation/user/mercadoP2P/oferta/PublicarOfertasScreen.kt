@@ -41,6 +41,7 @@ fun PublicarOfertaScreen(
     val monedasGlobales by ofertasViewModel.monedasGlobales.collectAsState()
 
     val tasaReferencial by ofertasViewModel.tipoCambioReferencial.collectAsState()
+
     val monedaTengoSelected by ofertasViewModel.monedaTengo.collectAsState()
     val monedaQuieroSelected by ofertasViewModel.monedaQuiero.collectAsState()
     LaunchedEffect(monedaTengoSelected, monedaQuieroSelected) {
