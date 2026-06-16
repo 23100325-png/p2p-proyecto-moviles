@@ -105,7 +105,8 @@ class OfertasViewModel : ViewModel() {
                     monedaDestinoId = mQuiero.id,
                     montoOrigen = monto,
                     tasaCambio = tasa,
-                    fechaPublicacion = Instant.now().toString()
+                    fechaPublicacion = Instant.now().toString(),
+                    comentario = notasAdicionalesText.value.ifBlank { null }
                 )
 
                 supabase.postgrest["ofertas"].insert(nuevaOferta)

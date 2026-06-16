@@ -55,6 +55,13 @@ class AuthViewModel : ViewModel() {
     var usuarioActualId by mutableStateOf("")
         private set
 
+    init {
+        // Recuperar ID de usuario si ya existe una sesión activa
+        SupabaseClient.client.auth.currentUserOrNull()?.let {
+            usuarioActualId = it.id
+        }
+    }
+
     fun iniciarSesion(email: String, pass: String) {
         // .trim() evita que un espacio en blanco al final del correo rompa el login
         val emailLimpio = email.trim()

@@ -21,9 +21,9 @@ data class OfertaInsert(
     @SerialName("moneda_destino_id") val monedaDestinoId: Long,
     @SerialName("monto_origen") val montoOrigen: Double,
     @SerialName("tasa_cambio") val tasaCambio: Double,
-    //@SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long,
     @SerialName("estado") val estado: String = "PENDIENTE",
-    @SerialName("fecha_publicacion") val fechaPublicacion: String
+    @SerialName("fecha_publicacion") val fechaPublicacion: String,
+    @SerialName("comentario") val comentario: String? = null
 )@Serializable
 data class OfertaMercado(
     @SerialName("id") val id: Long,
@@ -34,6 +34,7 @@ data class OfertaMercado(
     @SerialName("tasa_cambio") val tasaCambio: Double,
     @SerialName("estado") val estado: String,
     @SerialName("fecha_publicacion") val fechaPublicacion: String,
+    @SerialName("comentario") val comentario: String? = null,
 
     // Si tu estructura de perfiles maneja otros nombres, los adaptamos
     @SerialName("perfiles") val ofertanteInfo: OfertantePerfil? = null,

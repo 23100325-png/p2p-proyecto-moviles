@@ -11,7 +11,7 @@ import com.example.p2pmoviles.presentation.auth.RegistroScreen
 import com.example.p2pmoviles.presentation.home.HomeScreen
 import com.example.p2pmoviles.presentation.main.MainContainerScreen
 import com.example.p2pmoviles.presentation.receipt.UploadReceiptScreen
-import com.example.p2pmoviles.presentation.transactions.TransactionsScreen
+import com.example.p2pmoviles.presentation.user.historial.TransactionsScreen
 import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
 import com.example.p2pmoviles.presentation.user.mercadoP2P.oferta.PublicarOfertaScreen
 import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
@@ -99,6 +99,7 @@ fun AppNavigation(authViewModel: AuthViewModel) {
 
         composable(Routes.Transactions.route) {
             TransactionsScreen(
+                usuarioLogueadoId = userId,
                 onBackClick = { navController.popBackStack() }
             )
         }

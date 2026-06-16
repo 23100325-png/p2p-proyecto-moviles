@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PViewModel
 import com.example.p2pmoviles.data.model.OfertaMercado
 import com.example.p2pmoviles.ui.theme.*
@@ -381,23 +382,139 @@ fun BuscarOfertasScreen(
 
         AlertDialog(
             onDismissRequest = { mostrarConfirmacion = false },
-            containerColor = BinanceInputBackground,
-            title = { Text("Confirmar Intercambio", color = BinanceYellow, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text(text = "¿Estás seguro de aceptar esta oferta de ${ofertaAConfirmar?.ofertanteInfo?.nombre}?", color = BinanceTextPrimary, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
+            containerColor = BinanceSurface,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .wrapContentHeight(),
+            title = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(BinanceBackground, RoundedCornerShape(8.dp))
-                            .padding(12.dp)
+                            .size(48.dp)
+                            .background(BinanceYellow.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
+                        Icon(
+                            Icons.Default.SwapHoriz,
+                            contentDescription = null,
+                            tint = BinanceYellow,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Confirmar Intercambio",
+                        color = BinanceTextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Resumen de la operación P2P",
+                        color = BinanceTextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    // SECCIÓN 1: El Ofertante
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BinanceBackground, RoundedCornerShape(10.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(BinanceYellow),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (ofertaAConfirmar?.ofertanteInfo?.nombre ?: "U").take(1).uppercase(),
+                                color = BinanceBackground,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("Entregas: ${String.format("%.2f", pagoTotal)} $codigoTengo", color = BinanceGreen, fontWeight = FontWeight.Bold)
-                            Text("Recibes: ${String.format("%.2f", ofertaAConfirmar?.montoOrigen)} $codigoQuiero", color = BinanceTextPrimary)
+                            Text(
+                                text = ofertaAConfirmar?.ofertanteInfo?.nombre ?: "Vendedor",
+                                color = BinanceTextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Star, null, tint = BinanceYellow, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${ofertaAConfirmar?.ofertanteInfo?.calificacion} • ${ofertaAConfirmar?.ofertanteInfo?.totalOperaciones} ord.",
+                                    color = BinanceTextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
+
+                    // SECCIÓN 2: Detalles Económicos
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BinanceBackground, RoundedCornerShape(10.dp))
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DetailRow("Vas a pagar", String.format("%.2f %s", pagoTotal, codigoTengo), BinanceGreen)
+                        HorizontalDivider(color = BinanceSurface.copy(alpha = 0.3f), thickness = 0.5.dp)
+                        DetailRow("Vas a recibir", String.format("%.2f %s", ofertaAConfirmar?.montoOrigen, codigoQuiero), BinanceTextPrimary)
+                        HorizontalDivider(color = BinanceSurface.copy(alpha = 0.3f), thickness = 0.5.dp)
+                        DetailRow("Precio pactado", "1 $codigoQuiero = ${String.format("%.4f", ofertaAConfirmar?.tasaCambio)} $codigoTengo", BinanceYellow)
+                    }
+
+                    // SECCIÓN 3: Comentario (Si existe)
+                    if (!ofertaAConfirmar?.comentario.isNullOrBlank()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(BinanceYellow.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "Términos del vendedor:",
+                                    color = BinanceYellow,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = ofertaAConfirmar!!.comentario!!,
+                                color = BinanceTextPrimary,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "⚠️ Al confirmar, el saldo se debitará de tu billetera y se procesará el intercambio de forma irreversible.",
+                        color = BinanceTextSecondary.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 15.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                 }
             },
             confirmButton = {
@@ -414,16 +531,33 @@ fun BuscarOfertasScreen(
                             }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = BinanceYellow)
+                    colors = ButtonDefaults.buttonColors(containerColor = BinanceYellow),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
-                    Text("Confirmar", color = BinanceBackground)
+                    Text("Confirmar Compra", color = BinanceBackground, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { mostrarConfirmacion = false }) {
-                    Text("Cancelar", color = BinanceTextSecondary)
+                TextButton(
+                    onClick = { mostrarConfirmacion = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancelar y volver", color = BinanceTextSecondary, fontSize = 14.sp)
                 }
             }
         )
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = BinanceTextSecondary, fontSize = 13.sp)
+        Text(text = value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
