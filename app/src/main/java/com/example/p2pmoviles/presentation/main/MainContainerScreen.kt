@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.p2pmoviles.presentation.Menu.BottomBarItem
 import com.example.p2pmoviles.presentation.auth.AuthViewModel
-import com.example.p2pmoviles.presentation.transactions.TransactionsScreen
+import com.example.p2pmoviles.presentation.user.historial.TransactionsScreen
 import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
 import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
 import com.example.p2pmoviles.ui.theme.*
@@ -98,6 +98,7 @@ fun MainContainerScreen(
                 }
                 is BottomBarItem.Historial -> {
                     TransactionsScreen(
+                        usuarioLogueadoId = userId,
                         onBackClick = { /* Opcional */ }
                     )
                 }

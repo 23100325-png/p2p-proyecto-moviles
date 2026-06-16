@@ -1,4 +1,4 @@
-package com.example.p2pmoviles.presentation.transactions
+package com.example.p2pmoviles.presentation.Historial
 
 data class Transaction(
     val type: String,
