@@ -24,3 +24,13 @@ data class SolicitudFondoInsert(
     @SerialName("fecha_solicitud") val fechaSolicitud: String,
     @SerialName("cuenta_bancaria_id") val cuentaBancariaId: Long? = null // 👈 AGREGA ESTO SI FALTA
 )
+
+@Serializable
+data class CalificacionP2P(
+    @SerialName("transaccion_id") val transaccionId: Long,
+    @SerialName("usuario_evaluador_id") val usuarioEvaluadorId: String,
+    @SerialName("usuario_evaluado_id") val usuarioEvaluadoId: String,
+    @SerialName("puntuacion") val puntuacion: Int,
+    @SerialName("comentario") val comentario: String?,
+    @SerialName("fecha") val fecha: String
+)

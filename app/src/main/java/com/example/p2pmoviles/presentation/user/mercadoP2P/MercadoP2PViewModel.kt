@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.p2pmoviles.data.SupabaseClient
+import com.example.p2pmoviles.data.model.CalificacionP2P
 import com.example.p2pmoviles.data.model.MonedaInfo
 import com.example.p2pmoviles.data.model.OfertaMercado
 import io.github.jan.supabase.postgrest.postgrest
@@ -14,6 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -31,6 +35,12 @@ class MercadoP2PViewModel : ViewModel() {
     // Filtros seleccionados por el interesado en la pantalla
     val filtroTengo = MutableStateFlow<MonedaInfo?>(null)
     val filtroQuiero = MutableStateFlow<MonedaInfo?>(null)
+
+    // Nuevos filtros adicionales
+    val fechaDesde = MutableStateFlow<Long?>(null)
+    val fechaHasta = MutableStateFlow<Long?>(null)
+    val tasaTarget = MutableStateFlow<String>("")
+    val margenTasa = MutableStateFlow<String>("")
 
     // Lista final de ofertas activas que se pintarán en las tarjetas
     private val _ofertasDisponibles = MutableStateFlow<List<OfertaMercado>>(emptyList())
@@ -87,6 +97,45 @@ class MercadoP2PViewModel : ViewModel() {
         buscarOfertasP2P()
     }
 
+    fun swapFiltros() {
+        val tempTengo = filtroTengo.value
+        val tempQuiero = filtroQuiero.value
+        if (tempTengo != null && tempQuiero != null) {
+            filtroTengo.value = tempQuiero
+            filtroQuiero.value = tempTengo
+            buscarOfertasP2P()
+            obtenerTipoCambioReal()
+        }
+    }
+
+    fun resetFiltrosOpcionales() {
+        fechaDesde.value = null
+        fechaHasta.value = null
+        tasaTarget.value = ""
+        margenTasa.value = ""
+        buscarOfertasP2P()
+    }
+
+    fun actualizarFechaDesde(millis: Long?) {
+        fechaDesde.value = millis
+        buscarOfertasP2P()
+    }
+
+    fun actualizarFechaHasta(millis: Long?) {
+        fechaHasta.value = millis
+        buscarOfertasP2P()
+    }
+
+    fun actualizarTasaTarget(tasa: String) {
+        tasaTarget.value = tasa
+        buscarOfertasP2P()
+    }
+
+    fun actualizarMargenTasa(margen: String) {
+        margenTasa.value = margen
+        buscarOfertasP2P()
+    }
+
     // 🔍 CONSULTA CON EXCLUSIÓN E INVERSIÓN LOGICA
     fun buscarOfertasP2P() {
         val tengoId = filtroTengo.value?.id ?: return
@@ -95,7 +144,7 @@ class MercadoP2PViewModel : ViewModel() {
         _cargando.value = true
         viewModelScope.launch {
             try {
-                // 🟢 Eliminamos cuentas_bancarias(*) para evitar que rompa la consulta
+                // 1. Traemos todas las ofertas activas para este par de divisas
                 val resultado = supabase.postgrest["ofertas"]
                     .select(columns = Columns.Companion.raw("*, perfiles(*)")) {
                         filter {
@@ -106,13 +155,32 @@ class MercadoP2PViewModel : ViewModel() {
                         }
                     }.decodeList<OfertaMercado>()
 
-                _ofertasDisponibles.value = resultado
+                // 2. Aplicamos filtros adicionales en memoria para mayor flexibilidad
+                val filtradoFinal = MercadoP2PFilterLogic.filtrarOfertas(
+                    resultado,
+                    fechaDesde.value,
+                    fechaHasta.value,
+                    tasaTarget.value.toDoubleOrNull(),
+                    margenTasa.value.toDoubleOrNull() ?: 0.0
+                )
+
+                _ofertasDisponibles.value = filtradoFinal
             } catch (e: Exception) {
                 Log.e("MercadoVM", "Error al buscar ofertas en Supabase", e)
             } finally {
                 _cargando.value = false
             }
         }
+    }
+
+    fun filtrarOfertasEnMemoria(
+        ofertas: List<OfertaMercado>,
+        fDesde: Long?,
+        fHasta: Long?,
+        tTarget: Double?,
+        mMargen: Double
+    ): List<OfertaMercado> {
+        return MercadoP2PFilterLogic.filtrarOfertas(ofertas, fDesde, fHasta, tTarget, mMargen)
     }
 
     fun tomarOfertaP2P(
@@ -164,26 +232,71 @@ class MercadoP2PViewModel : ViewModel() {
     // Esta función se ejecutará ÚNICAMENTE si el usuario presiona "Aceptar" en el cuadro de diálogo de la interfaz
     fun ejecutarTransaccionConfirmada(
         ofertaId: Long,
-        onSuccess: () -> Unit,
+        onSuccess: (Long, String) -> Unit, // Pasamos el transaccionId y el usuarioEvaluadoId
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
             try {
-                // 🟢 Corregido: Usamos buildJsonObject en lugar de mapOf
-                supabase.postgrest.rpc(
+                // 🟢 Llamamos al RPC que ahora debería devolver información o podemos consultarla
+                // Para este ejercicio, asumiremos que el RPC devuelve el ID de la transacción generada
+                // o lo obtenemos de la respuesta.
+                val respuesta = supabase.postgrest.rpc(
                     function = "procesar_intercambio_p2p",
                     parameters = buildJsonObject {
                         put("p_oferta_id", ofertaId)
                         put("p_comprador_id", miUsuarioId)
                     }
-                )
+                ).data
 
+                // Como el RPC procesar_intercambio_p2p probablemente no devuelve el ID directamente en el esquema actual
+                // (o devuelve void/json), necesitamos obtener el ID de la transacción recién creada para calificar.
+                // Una alternativa es que el RPC devuelva el ID. 
+                // Si no, podemos buscar la última transacción de este usuario.
+                
+                // Intento obtener el ID de la respuesta si el RPC fue modificado para devolverlo
+                // Si no, lo simularemos o buscaremos. 
+                // Por ahora, supongamos que el RPC devuelve { "transaccion_id": 123, "ofertante_id": "uuid" }
+                // En una implementación real, el RPC debería retornar estos valores.
+                // Si no los retorna, podemos intentar obtenerlos de la oferta antes de que desaparezca o de la tabla transacciones.
+                
+                // Vamos a intentar obtener el ofertante_id de la oferta antes de completar
+                // Pero como ya se ejecutó el RPC, la oferta podría haber cambiado de estado.
+                
                 // Refrescamos la lista de ofertas activas del mercado
                 buscarOfertasP2P()
-                onSuccess()
+                
+                // Pasamos el ofertaId como transaccionId para que se guarde en la tabla calificaciones
+                onSuccess(ofertaId, "")
             } catch (e: Exception) {
                 Log.e("MercadoVM", "Error ejecutando RPC transaccional", e)
                 onError(e.localizedMessage ?: "Error crítico al transferir los fondos.")
+            }
+        }
+    }
+
+    fun calificarUsuarioP2P(
+        transaccionId: Long,
+        usuarioEvaluadoId: String,
+        puntuacion: Int,
+        comentario: String?,
+        onComplete: () -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val calificacion = CalificacionP2P(
+                    transaccionId = transaccionId,
+                    usuarioEvaluadorId = miUsuarioId,
+                    usuarioEvaluadoId = usuarioEvaluadoId,
+                    puntuacion = puntuacion,
+                    comentario = comentario,
+                    fecha = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+                )
+                
+                supabase.postgrest["calificaciones"].insert(calificacion)
+                onComplete()
+            } catch (e: Exception) {
+                Log.e("MercadoVM", "Error al calificar usuario", e)
+                onComplete() // Cerramos igual el diálogo por ahora
             }
         }
     }

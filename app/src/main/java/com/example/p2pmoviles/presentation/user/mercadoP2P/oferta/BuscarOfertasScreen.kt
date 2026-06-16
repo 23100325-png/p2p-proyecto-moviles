@@ -5,18 +5,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,7 +32,11 @@ import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PViewModel
 import com.example.p2pmoviles.data.model.OfertaMercado
 import com.example.p2pmoviles.ui.theme.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuscarOfertasScreen(
     usuarioLogueadoId: String,
@@ -43,6 +54,12 @@ fun BuscarOfertasScreen(
     val quieroSelected by mercadoViewModel.filtroQuiero.collectAsState()
     val cargando by mercadoViewModel.cargando.collectAsState()
 
+    // Filtros adicionales del ViewModel
+    val fechaDesde by mercadoViewModel.fechaDesde.collectAsState()
+    val fechaHasta by mercadoViewModel.fechaHasta.collectAsState()
+    val tasaTarget by mercadoViewModel.tasaTarget.collectAsState()
+    val margenTasa by mercadoViewModel.margenTasa.collectAsState()
+
     // 🟢 Lectura del estado de la API de tipo de cambio
     val tasaReferencial by mercadoViewModel.tipoCambioReferencial.collectAsState()
 
@@ -56,10 +73,24 @@ fun BuscarOfertasScreen(
     // Control local de los Diálogos de Filtro
     var mostrarDialogoTengo by remember { mutableStateOf(false) }
     var mostrarDialogoQuiero by remember { mutableStateOf(false) }
+    var mostrarFiltrosAvanzados by remember { mutableStateOf(false) }
+
+    // Date Pickers
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    val startDatePickerState = rememberDatePickerState()
+    val endDatePickerState = rememberDatePickerState()
 
     // Estados para la confirmación de la transacción mediante ventanas flotantes
     var mostrarConfirmacion by remember { mutableStateOf(false) }
     var ofertaAConfirmar by remember { mutableStateOf<OfertaMercado?>(null) }
+
+    // Estados para el diálogo de calificación
+    var mostrarCalificacion by remember { mutableStateOf(false) }
+    var transaccionIdParaCalificar by remember { mutableLongStateOf(0L) }
+    var usuarioIdParaCalificar by remember { mutableStateOf("") }
+    var puntuacionSeleccionada by remember { mutableIntStateOf(5) }
+    var comentarioCalificacion by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -119,7 +150,11 @@ fun BuscarOfertasScreen(
                         imageVector = Icons.Default.SwapHoriz,
                         contentDescription = "Intercambio",
                         tint = BinanceYellow,
-                        modifier = Modifier.padding(horizontal = 12.dp).size(24.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable { mercadoViewModel.swapFiltros() }
                     )
 
                     // Caja Selector "Quiero"
@@ -135,6 +170,131 @@ fun BuscarOfertasScreen(
                             Text("Quiero", color = BinanceTextSecondary, fontSize = 11.sp)
                             Text(codigoQuiero, color = BinanceTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Fila de Filtros Avanzados y Botón Limpiar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { mostrarFiltrosAvanzados = !mostrarFiltrosAvanzados }
+                ) {
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = BinanceYellow, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (mostrarFiltrosAvanzados) "Ocultar filtros" else "Filtros avanzados",
+                        color = BinanceYellow,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (fechaDesde != null || fechaHasta != null || tasaTarget.isNotEmpty() || margenTasa.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { mercadoViewModel.resetFiltrosOpcionales() }
+                    ) {
+                        Icon(Icons.Default.ClearAll, contentDescription = null, tint = BinanceError, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Limpiar", color = BinanceError, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            if (mostrarFiltrosAvanzados) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BinanceInputBackground, RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Filtros de Fecha
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(BinanceBackground, RoundedCornerShape(8.dp))
+                                .clickable { showStartDatePicker = true }
+                                .padding(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CalendarMonth, null, tint = BinanceTextSecondary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (fechaDesde != null) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(fechaDesde!!)) else "Desde",
+                                    color = if (fechaDesde != null) BinanceTextPrimary else BinanceTextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(BinanceBackground, RoundedCornerShape(8.dp))
+                                .clickable { showEndDatePicker = true }
+                                .padding(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CalendarMonth, null, tint = BinanceTextSecondary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (fechaHasta != null) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(fechaHasta!!)) else "Hasta",
+                                    color = if (fechaHasta != null) BinanceTextPrimary else BinanceTextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Filtros de Tipo de Cambio
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = tasaTarget,
+                            onValueChange = { mercadoViewModel.actualizarTasaTarget(it) },
+                            label = { Text("Tasa buscada", fontSize = 11.sp) },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BinanceTextPrimary,
+                                unfocusedTextColor = BinanceTextPrimary,
+                                focusedContainerColor = BinanceBackground,
+                                unfocusedContainerColor = BinanceBackground,
+                                focusedBorderColor = BinanceYellow,
+                                unfocusedBorderColor = BinanceTextSecondary.copy(alpha = 0.3f),
+                                focusedLabelColor = BinanceYellow,
+                                unfocusedLabelColor = BinanceTextSecondary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = margenTasa,
+                            onValueChange = { mercadoViewModel.actualizarMargenTasa(it) },
+                            label = { Text("Margen ±", fontSize = 11.sp) },
+                            modifier = Modifier.weight(0.6f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = BinanceTextPrimary,
+                                unfocusedTextColor = BinanceTextPrimary,
+                                focusedContainerColor = BinanceBackground,
+                                unfocusedContainerColor = BinanceBackground,
+                                focusedBorderColor = BinanceYellow,
+                                unfocusedBorderColor = BinanceTextSecondary.copy(alpha = 0.3f),
+                                focusedLabelColor = BinanceYellow,
+                                unfocusedLabelColor = BinanceTextSecondary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = true
+                        )
                     }
                 }
             }
@@ -222,6 +382,14 @@ fun BuscarOfertasScreen(
                         val montoQueRecibes = oferta.montoOrigen
                         val totalAPagarInteresado = oferta.montoOrigen * oferta.tasaCambio
                         val nombreOfertante = oferta.ofertanteInfo?.nombre ?: "Usuario Anónimo"
+                        val fechaPublicacionFormateada = try {
+                            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                            val formatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+                            val date = parser.parse(oferta.fechaPublicacion)
+                            formatter.format(date!!)
+                        } catch (e: Exception) {
+                            oferta.fechaPublicacion
+                        }
 
                         Column(
                             modifier = Modifier
@@ -230,10 +398,11 @@ fun BuscarOfertasScreen(
                                 .background(BinanceInputBackground, RoundedCornerShape(14.dp))
                                 .padding(16.dp)
                         ) {
+                            // Fila superior con Info del Usuario y Fecha
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.Top
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
@@ -257,23 +426,39 @@ fun BuscarOfertasScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Star, contentDescription = null, tint = BinanceYellow, modifier = Modifier.size(12.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text(text = "${oferta.ofertanteInfo?.calificacion ?: 5.0} (${oferta.ofertanteInfo?.totalOperaciones ?: 120} operaciones)", color = BinanceTextSecondary, fontSize = 11.sp)
+                                            Text(
+                                                text = String.format("%.1f (%d calificaciones)", 
+                                                    oferta.ofertanteInfo?.calificacion ?: 5.0, 
+                                                    oferta.ofertanteInfo?.totalOperaciones ?: 0
+                                                ), 
+                                                color = BinanceTextSecondary, 
+                                                fontSize = 11.sp
+                                            )
                                         }
                                     }
                                 }
 
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = String.format("%.4f", oferta.tasaCambio),
-                                        color = BinanceYellow,
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                    Text(text = "Precio por 1 $codigoQuiero", color = BinanceTextSecondary, fontSize = 11.sp)
-                                }
+                                Text(
+                                    text = fechaPublicacionFormateada,
+                                    color = BinanceTextSecondary,
+                                    fontSize = 11.sp
+                                )
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
+
+                            // Tasa de cambio de la oferta
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "Precio: ", color = BinanceTextSecondary, fontSize = 12.sp)
+                                Text(
+                                    text = "1 $codigoQuiero = ${String.format("%.4f", oferta.tasaCambio)} $codigoTengo",
+                                    color = BinanceYellow,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -321,6 +506,30 @@ fun BuscarOfertasScreen(
                 }
             }
         }
+    }
+
+    if (showStartDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    mercadoViewModel.actualizarFechaDesde(startDatePickerState.selectedDateMillis)
+                    showStartDatePicker = false
+                }) { Text("Aceptar", color = BinanceYellow) }
+            }
+        ) { DatePicker(state = startDatePickerState) }
+    }
+
+    if (showEndDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    mercadoViewModel.actualizarFechaHasta(endDatePickerState.selectedDateMillis)
+                    showEndDatePicker = false
+                }) { Text("Aceptar", color = BinanceYellow) }
+            }
+        ) { DatePicker(state = endDatePickerState) }
     }
 
     // 📌 DIÁLOGOS DE FILTRADO INTERNO
@@ -458,7 +667,10 @@ fun BuscarOfertasScreen(
                                 Icon(Icons.Default.Star, null, tint = BinanceYellow, modifier = Modifier.size(12.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "${ofertaAConfirmar?.ofertanteInfo?.calificacion} • ${ofertaAConfirmar?.ofertanteInfo?.totalOperaciones} ord.",
+                                    text = String.format("%.1f (%d calificaciones)", 
+                                        ofertaAConfirmar?.ofertanteInfo?.calificacion ?: 5.0, 
+                                        ofertaAConfirmar?.ofertanteInfo?.totalOperaciones ?: 0
+                                    ),
                                     color = BinanceTextSecondary,
                                     fontSize = 11.sp
                                 )
@@ -521,10 +733,17 @@ fun BuscarOfertasScreen(
                 Button(
                     onClick = {
                         mostrarConfirmacion = false
+                        val ofertanteIdParaCalificar = ofertaAConfirmar?.usuarioId ?: ""
                         mercadoViewModel.ejecutarTransaccionConfirmada(
                             ofertaId = ofertaAConfirmar!!.id,
-                            onSuccess = {
-                                coroutineScope.launch { snackbarHostState.showSnackbar("✅ ¡Transacción completada! Saldo actualizado.") }
+                            onSuccess = { tId, _ ->
+                                coroutineScope.launch { 
+                                    snackbarHostState.showSnackbar("✅ ¡Transacción completada! Saldo actualizado.") 
+                                }
+                                // Preparamos el diálogo de calificación
+                                transaccionIdParaCalificar = tId
+                                usuarioIdParaCalificar = ofertanteIdParaCalificar
+                                mostrarCalificacion = true
                             },
                             onError = { error ->
                                 coroutineScope.launch { snackbarHostState.showSnackbar("❌ Error: $error") }
@@ -544,6 +763,87 @@ fun BuscarOfertasScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Cancelar y volver", color = BinanceTextSecondary, fontSize = 14.sp)
+                }
+            }
+        )
+    }
+
+    // 📌 DIÁLOGO DE CALIFICACIÓN
+    if (mostrarCalificacion) {
+        AlertDialog(
+            onDismissRequest = { mostrarCalificacion = false },
+            containerColor = BinanceSurface,
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text("¿Deseas calificar al ofertante?", color = BinanceTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tu opinión ayuda a mantener segura la comunidad", color = BinanceTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // Estrellas
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        (1..5).forEach { index ->
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = if (index <= puntuacionSeleccionada) BinanceYellow else BinanceTextSecondary.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clickable { puntuacionSeleccionada = index }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    OutlinedTextField(
+                        value = comentarioCalificacion,
+                        onValueChange = { comentarioCalificacion = it },
+                        label = { Text("Comentarios (opcional)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = BinanceTextPrimary,
+                            unfocusedTextColor = BinanceTextPrimary,
+                            focusedBorderColor = BinanceYellow,
+                            unfocusedBorderColor = BinanceTextSecondary.copy(alpha = 0.3f),
+                            focusedLabelColor = BinanceYellow,
+                            unfocusedLabelColor = BinanceTextSecondary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        mercadoViewModel.calificarUsuarioP2P(
+                            transaccionId = transaccionIdParaCalificar,
+                            usuarioEvaluadoId = usuarioIdParaCalificar,
+                            puntuacion = puntuacionSeleccionada,
+                            comentario = comentarioCalificacion.ifBlank { null },
+                            onComplete = {
+                                mostrarCalificacion = false
+                                comentarioCalificacion = ""
+                                puntuacionSeleccionada = 5
+                                coroutineScope.launch { snackbarHostState.showSnackbar("⭐ ¡Gracias por tu calificación!") }
+                            }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = BinanceYellow),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                ) {
+                    Text("Calificar", color = BinanceBackground, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { mostrarCalificacion = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Ahora no", color = BinanceTextSecondary)
                 }
             }
         )
