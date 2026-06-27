@@ -45,19 +45,29 @@ fun TransactionsScreen(
     val esModoOfertante by historialViewModel.esModoOfertante.collectAsState()
     val mensaje by historialViewModel.mensaje.collectAsState()
 
+    // 🟢 ESTADOS DE FECHA DESDE EL VIEWMODEL
+    val startDateMillis by historialViewModel.fechaDesde.collectAsState()
+    val endDateMillis by historialViewModel.fechaHasta.collectAsState()
+
     var expandedStatus by remember { mutableStateOf(false) }
     var selectedStatus by remember { mutableStateOf("Todos los estados") }
     var expandedSort by remember { mutableStateOf(false) }
     var selectedSort by remember { mutableStateOf("Más recientes") }
 
-    var startDate by remember { mutableStateOf("Desde") }
-    var endDate by remember { mutableStateOf("Hasta") }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
+
     val startDatePickerState = rememberDatePickerState()
-    val endDatePickerState = rememberDatePickerState()
-    var startDateMillis by remember { mutableStateOf<Long?>(null) }
-    var endDateMillis by remember { mutableStateOf<Long?>(null) }
+    
+    // 🟢 RESTRICCIÓN DEL CALENDARIO "HASTA": 
+    // No permite seleccionar fechas anteriores a "Desde"
+    val endDatePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return startDateMillis?.let { utcTimeMillis >= it } ?: true
+            }
+        }
+    )
 
     // Estado para el BottomSheet de seguimiento
     var showTrackingSheet by remember { mutableStateOf(false) }
@@ -107,11 +117,11 @@ fun TransactionsScreen(
     }
 
     Scaffold(
-        containerColor = BinanceBackground // 🟢 Usando tu fondo oficial
+        containerColor = BinanceBackground
     ) { paddingValues ->
         if (estaCargando) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BinanceYellow) // 🟢 Usando tu amarillo oficial
+                CircularProgressIndicator(color = BinanceYellow)
             }
         } else {
             LazyColumn(
@@ -135,7 +145,7 @@ fun TransactionsScreen(
                     ) {
                         Text(
                             text = if (esModoOfertante) "Mis Ofertas Publicadas" else "Compras Realizadas",
-                            color = BinanceTextPrimary, // 🟢 Texto principal oficial
+                            color = BinanceTextPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -194,7 +204,7 @@ fun TransactionsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(BinanceSurface, RoundedCornerShape(12.dp)) // 🟢 Usando tu color de superficie/inputs
+                            .background(BinanceSurface, RoundedCornerShape(12.dp))
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -205,17 +215,14 @@ fun TransactionsScreen(
                         ) {
                             Text(
                                 text = "Filtrar por estado e historial",
-                                color = BinanceTextSecondary, // 🟢 Texto secundario oficial
+                                color = BinanceTextSecondary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             
                             IconButton(
                                 onClick = {
-                                    startDate = "Desde"
-                                    endDate = "Hasta"
-                                    startDateMillis = null
-                                    endDateMillis = null
+                                    historialViewModel.limpiarFiltrosFechas()
                                     selectedStatus = "Todos los estados"
                                 },
                                 modifier = Modifier.size(24.dp)
@@ -229,40 +236,63 @@ fun TransactionsScreen(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            val fechaDesdeStr = startDateMillis?.let { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it)) } ?: "Desde"
+                            val fechaHastaStr = endDateMillis?.let { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it)) } ?: "Hasta"
+
                             OutlinedTextField(
-                                value = startDate,
+                                value = fechaDesdeStr,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Desde", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f),
+                                label = { Text("Desde", fontSize = 11.sp) },
+                                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { showStartDatePicker = true },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = BinanceTextPrimary,
                                     unfocusedTextColor = BinanceTextPrimary,
                                     focusedLabelColor = BinanceYellow,
-                                    unfocusedLabelColor = BinanceTextSecondary
+                                    unfocusedLabelColor = BinanceTextSecondary,
+                                    disabledTextColor = BinanceTextPrimary,
+                                    disabledBorderColor = BinanceTextSecondary,
+                                    disabledLabelColor = BinanceTextSecondary
                                 ),
+                                enabled = false,
                                 trailingIcon = {
-                                    IconButton(onClick = { showStartDatePicker = true }) {
-                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = BinanceYellow)
-                                    }
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = BinanceYellow)
                                 }
                             )
                             OutlinedTextField(
-                                value = endDate,
+                                value = fechaHastaStr,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Hasta", fontSize = 12.sp) },
-                                modifier = Modifier.weight(1f),
+                                label = { Text("Hasta", fontSize = 11.sp) },
+                                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(
+                                        if (startDateMillis != null) {
+                                            Modifier.clickable { showEndDatePicker = true }
+                                        } else {
+                                            Modifier
+                                        }
+                                    ),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = BinanceTextPrimary,
-                                    unfocusedTextColor = BinanceTextPrimary,
+                                    focusedTextColor = if (startDateMillis != null) BinanceTextPrimary else BinanceTextSecondary.copy(alpha = 0.5f),
+                                    unfocusedTextColor = if (startDateMillis != null) BinanceTextPrimary else BinanceTextSecondary.copy(alpha = 0.5f),
                                     focusedLabelColor = BinanceYellow,
-                                    unfocusedLabelColor = BinanceTextSecondary
+                                    unfocusedLabelColor = BinanceTextSecondary,
+                                    disabledTextColor = if (startDateMillis != null) BinanceTextPrimary else BinanceTextSecondary.copy(alpha = 0.5f),
+                                    disabledBorderColor = if (startDateMillis != null) BinanceTextSecondary else BinanceTextSecondary.copy(alpha = 0.3f),
+                                    disabledLabelColor = BinanceTextSecondary
                                 ),
+                                enabled = false,
                                 trailingIcon = {
-                                    IconButton(onClick = { showEndDatePicker = true }) {
-                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = BinanceYellow)
-                                    }
+                                    Icon(
+                                        Icons.Default.CalendarMonth, 
+                                        contentDescription = null, 
+                                        tint = if (startDateMillis != null) BinanceYellow else BinanceTextSecondary.copy(alpha = 0.4f)
+                                    )
                                 }
                             )
                         }
@@ -392,10 +422,7 @@ fun TransactionsScreen(
             onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    startDatePickerState.selectedDateMillis?.let { millis ->
-                        startDateMillis = millis
-                        startDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(millis))
-                    }
+                    historialViewModel.actualizarFechaDesde(startDatePickerState.selectedDateMillis)
                     showStartDatePicker = false
                 }) { Text("Aceptar", color = BinanceYellow) }
             }
@@ -407,10 +434,7 @@ fun TransactionsScreen(
             onDismissRequest = { showEndDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    endDatePickerState.selectedDateMillis?.let { millis ->
-                        endDateMillis = millis
-                        endDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(millis))
-                    }
+                    historialViewModel.actualizarFechaHasta(endDatePickerState.selectedDateMillis)
                     showEndDatePicker = false
                 }) { Text("Aceptar", color = BinanceYellow) }
             }
@@ -606,9 +630,6 @@ fun formatTimelineDate(dateStr: String, showTime: Boolean = true): String {
 // ==========================================================
 // COMPONENTE VISUAL DE LA TARJETA ADAPTADO A TU PALETA
 // ==========================================================
-// ==========================================================
-// COMPONENTE VISUAL DE LA TARJETA ADAPTADO A TU PALETA
-// ==========================================================
 @Composable
 fun HorizontalOfertaCard(
     oferta: OfertaDb, 
@@ -639,7 +660,7 @@ fun HorizontalOfertaCard(
             ) {
                 val fechaFormateada = formatTimelineDate(oferta.fechaPublicacion, showTime = false)
                 
-                Text(text = "Operación: $fechaFormateada", color = BinanceTextSecondary, fontSize = 11.sp)
+                Text(text = "Operación: $fechaFormateada", color = BinanceTextSecondary, fontSize = 10.sp)
 
                 val statusColor = when {
                     esActiva -> BinanceYellow

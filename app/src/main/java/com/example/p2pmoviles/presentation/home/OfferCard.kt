@@ -28,8 +28,14 @@ fun OfferCard(
 ) {
     val nombreUsuario = oferta.ofertanteInfo?.nombre ?: "Usuario"
     val inicial = nombreUsuario.take(1).uppercase()
-    val rating = "${oferta.ofertanteInfo?.calificacion ?: 5.0} (${oferta.ofertanteInfo?.totalOperaciones ?: 100})"
-    //val paymentMethod = oferta.bancoInfo?.banco ?: "Transferencia"
+    
+    // 🟢 REPUTACIÓN REAL CALCULADA
+    val rawRating = oferta.ofertanteInfo?.calificacion ?: 0.0
+    val totalResenas = oferta.ofertanteInfo?.totalOperaciones ?: 0
+    val ratingFormateado = if (totalResenas > 0) String.format(java.util.Locale.US, "%.1f", rawRating) else "Nuevo"
+    val ratingText = "$ratingFormateado ($totalResenas)"
+    
+    val paymentMethod = "Transferencia" // O el dato real si existe
 
     Row(
         modifier = Modifier
@@ -54,11 +60,11 @@ fun OfferCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Star, contentDescription = null, tint = Yellow, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(rating, color = SoftText, fontSize = 12.sp)
+                Text(ratingText, color = SoftText, fontSize = 12.sp)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text("Método de pago", color = SoftText, fontSize = 11.sp)
-            //Text(paymentMethod, color = Color.White, fontSize = 13.sp)
+            Text(paymentMethod, color = Color.White, fontSize = 13.sp)
         }
 
         Column(horizontalAlignment = Alignment.End) {
