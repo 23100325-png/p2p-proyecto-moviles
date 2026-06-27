@@ -43,6 +43,7 @@ fun TransactionsScreen(
     val ofertasUsuario by historialViewModel.ofertas.collectAsState()
     val estaCargando by historialViewModel.cargando.collectAsState()
     val esModoOfertante by historialViewModel.esModoOfertante.collectAsState()
+    val mensaje by historialViewModel.mensaje.collectAsState()
 
     var expandedStatus by remember { mutableStateOf(false) }
     var selectedStatus by remember { mutableStateOf("Todos los estados") }
@@ -360,6 +361,9 @@ fun TransactionsScreen(
                             onClick = {
                                 selectedOfertaForTracking = oferta
                                 showTrackingSheet = true
+                            },
+                            onCancelClick = {
+                                historialViewModel.cancelarOferta(oferta.id, usuarioLogueadoId)
                             }
                         )
                     }
@@ -411,6 +415,20 @@ fun TransactionsScreen(
                 }) { Text("Aceptar", color = BinanceYellow) }
             }
         ) { DatePicker(state = endDatePickerState) }
+    }
+
+    mensaje?.let {
+        AlertDialog(
+            onDismissRequest = { historialViewModel.limpiarMensaje() },
+            confirmButton = {
+                TextButton(onClick = { historialViewModel.limpiarMensaje() }) {
+                    Text("OK", color = BinanceYellow)
+                }
+            },
+            title = { Text("Operación", color = BinanceTextPrimary) },
+            text = { Text(it, color = BinanceTextSecondary) },
+            containerColor = BinanceSurface
+        )
     }
 
     // Modal Bottom Sheet para el Flujo de la Operación
@@ -595,7 +613,8 @@ fun formatTimelineDate(dateStr: String, showTime: Boolean = true): String {
 fun HorizontalOfertaCard(
     oferta: OfertaDb, 
     esModoOfertante: Boolean,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onCancelClick: () -> Unit = {}
 ) {
     val esActiva = oferta.estado == "ACTIVA"
     val esCompletada = oferta.estado == "COMPLETADA"
@@ -757,6 +776,29 @@ fun HorizontalOfertaCard(
                         fontSize = 11.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                     )
+                }
+            }
+
+            // BOTÓN DE CANCELAR (Solo para modo ofertante y estado ACTIVA)
+            if (esModoOfertante && esActiva) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = onCancelClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BinanceError.copy(alpha = 0.1f),
+                        contentColor = BinanceError
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.DeleteSweep,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Cancelar Oferta", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

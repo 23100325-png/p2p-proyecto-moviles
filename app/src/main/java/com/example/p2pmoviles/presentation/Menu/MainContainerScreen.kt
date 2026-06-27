@@ -12,6 +12,5 @@ sealed class BottomBarItem(val title: String, val icon: ImageVector) {
     object Billetera : BottomBarItem("Billetera", Icons.Default.AccountBalanceWallet)
     object MercadoP2P : BottomBarItem("Mercado P2P", Icons.Default.Storefront)
     object Historial : BottomBarItem("Historial", Icons.Default.History)
-    //object Perfil : BottomBarItem("Mi perfil", Icons.Default.Person)
-    object CerrarSesion : BottomBarItem("Salir", Icons.Default.ExitToApp)
+    object Perfil : BottomBarItem("Perfil", Icons.Default.Person)
 }

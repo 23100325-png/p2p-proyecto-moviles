@@ -34,3 +34,16 @@ data class CalificacionP2P(
     @SerialName("comentario") val comentario: String?,
     @SerialName("fecha") val fecha: String
 )
+
+@Serializable
+data class CuentaBancaria(
+    val id: Long? = null,
+    @SerialName("usuario_id") val usuarioId: String,
+    @SerialName("moneda_id") val monedaId: Long,
+    val banco: String,
+    @SerialName("numero_cuenta") val numeroCuenta: String,
+    @SerialName("numero_cci") val numeroCci: String? = null,
+    @SerialName("titular_nombre") val titularNombre: String,
+    val monedas: MonedaInfo? = null
+)
+

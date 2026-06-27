@@ -426,7 +426,7 @@ fun DialogRetiro(
                 Button(
                     onClick = {
                         if (billeteraSeleccionada != null && cuentaBancariaSeleccionada != null) {
-                            onConfirm(billeteraSeleccionada!!.monedaId, montoIngresado, cuentaBancariaSeleccionada!!.id)
+                            onConfirm(billeteraSeleccionada!!.monedaId, montoIngresado, cuentaBancariaSeleccionada!!.id!!)
                         }
                     },
                     enabled = formularioListo,
@@ -455,7 +455,7 @@ fun DialogRetiro(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (bancosFiltrados.isEmpty()) {
                         Text(
-                            text = "No tienes cuentas bancarias registradas en ${billeteraSeleccionada?.monedas?.codigoIso ?: ""}. Agrégalas en tu configuración de perfil.",
+                            text = "No tienes cuentas bancarias registradas en ${billeteraSeleccionada?.monedas?.nombre ?: ""}. Agrégalas en tu configuración de perfil.",
                             color = BinanceError,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,

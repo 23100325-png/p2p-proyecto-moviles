@@ -54,12 +54,12 @@ data class OfertaDb(
     @SerialName("perfil_ofertante") val perfilOfertante: PerfilRelacion? = null
 ) {
     // 🟢 CAMPOS CALCULADOS DINÁMICOS (Vista como Ofertante)
-    val textoVendi: String get() = "${String.format("%.2f", montoOrigen)} ${monedaOrigen?.simbolo ?: ""}"
-    val textoRecibi: String get() = "${String.format("%.2f", montoOrigen * tasaCambio)} ${monedaDestino?.simbolo ?: ""}"
+    val textoVendi: String get() = "${monedaOrigen?.simbolo ?: ""} ${String.format("%.2f", montoOrigen)}"
+    val textoRecibi: String get() = "${monedaDestino?.simbolo ?: ""} ${String.format("%.2f", montoOrigen * tasaCambio)}"
 
     // 🟢 CAMPOS CALCULADOS DINÁMICOS (Vista como Comprador)
-    val textoPague: String get() = "${String.format("%.2f", montoOrigen * tasaCambio)} ${monedaDestino?.simbolo ?: ""}"
-    val textoRecibiComoComprador: String get() = "${String.format("%.2f", montoOrigen)} ${monedaOrigen?.simbolo ?: ""}"
+    val textoPague: String get() = "${monedaDestino?.simbolo ?: ""} ${String.format("%.2f", montoOrigen * tasaCambio)}"
+    val textoRecibiComoComprador: String get() = "${monedaOrigen?.simbolo ?: ""} ${String.format("%.2f", montoOrigen)}"
 }
 
 class HistorialOfertasViewModel : ViewModel() {
@@ -138,5 +138,37 @@ class HistorialOfertasViewModel : ViewModel() {
                 _cargando.value = false
             }
         }
+    }
+
+    fun cancelarOferta(ofertaId: Long, usuarioId: String) {
+        viewModelScope.launch {
+            _cargando.value = true
+            try {
+                SupabaseClient.client.postgrest["ofertas"].update(
+                    {
+                        set("estado", "CANCELADA")
+                    }
+                ) {
+                    filter {
+                        eq("id", ofertaId)
+                        eq("estado", "ACTIVA")
+                    }
+                }
+                _mensaje.value = "Oferta cancelada con éxito."
+                cargarOfertasDelUsuario(usuarioId)
+            } catch (e: Exception) {
+                Log.e("HistorialVM", "Error al cancelar oferta", e)
+                _mensaje.value = "Error al cancelar: ${e.localizedMessage}"
+            } finally {
+                _cargando.value = false
+            }
+        }
+    }
+
+    private val _mensaje = MutableStateFlow<String?>(null)
+    val mensaje: StateFlow<String?> = _mensaje.asStateFlow()
+
+    fun limpiarMensaje() {
+        _mensaje.value = null
     }
 }

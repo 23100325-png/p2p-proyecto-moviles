@@ -16,6 +16,8 @@ import com.example.p2pmoviles.presentation.user.mercadoP2P.MercadoP2PScreen
 import com.example.p2pmoviles.presentation.user.mercadoP2P.oferta.PublicarOfertaScreen
 import com.example.p2pmoviles.presentation.user.billetera.UserWalletScreen
 
+import com.example.p2pmoviles.presentation.user.notifications.NotificationsScreen
+
 @Composable
 fun AppNavigation(authViewModel: AuthViewModel) {
     val navController = rememberNavController()
@@ -65,10 +67,19 @@ fun AppNavigation(authViewModel: AuthViewModel) {
                         popUpTo("main_container") { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+                onNavigateToNotifications = {
+                    navController.navigate(Routes.Notifications.route)
                 }
             )
         }
         // --- PANTALLAS DE USUARIO ---
+        composable(Routes.Notifications.route) {
+            NotificationsScreen(
+                usuarioId = userId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
         composable(Routes.Wallet.route) {
             UserWalletScreen(
                 userId = userId,
