@@ -468,7 +468,7 @@ fun BuscarOfertasScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text("Recibes: ", color = BinanceTextSecondary, fontSize = 13.sp)
-                                        Text(text = String.format("%.2f %s", montoQueRecibes, codigoQuiero), color = BinanceTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Text(text = String.format("%s %.2f", oferta.monedaInfo?.simbolo ?: "", montoQueRecibes), color = BinanceTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -688,7 +688,7 @@ fun BuscarOfertasScreen(
                     ) {
                         DetailRow("Vas a pagar", String.format("%.2f %s", pagoTotal, codigoTengo), BinanceGreen)
                         HorizontalDivider(color = BinanceSurface.copy(alpha = 0.3f), thickness = 0.5.dp)
-                        DetailRow("Vas a recibir", String.format("%.2f %s", ofertaAConfirmar?.montoOrigen, codigoQuiero), BinanceTextPrimary)
+                        DetailRow("Vas a recibir", String.format("%s %.2f", ofertaAConfirmar?.monedaInfo?.simbolo ?: "", ofertaAConfirmar?.montoOrigen ?: 0.0), BinanceTextPrimary)
                         HorizontalDivider(color = BinanceSurface.copy(alpha = 0.3f), thickness = 0.5.dp)
                         DetailRow("Precio pactado", "1 $codigoQuiero = ${String.format("%.4f", ofertaAConfirmar?.tasaCambio)} $codigoTengo", BinanceYellow)
                     }

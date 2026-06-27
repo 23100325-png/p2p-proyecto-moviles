@@ -66,7 +66,7 @@ fun OfferCard(
             Text("por 1 $codigoQuiero", color = Yellow, fontSize = 11.sp)
             Spacer(modifier = Modifier.height(12.dp))
             Text("Monto", color = SoftText, fontSize = 11.sp)
-            Text("${oferta.montoOrigen} $codigoQuiero", color = Color.White, fontSize = 13.sp)
+            Text("${oferta.monedaInfo?.simbolo ?: ""} ${oferta.montoOrigen}", color = Color.White, fontSize = 13.sp)
         }
 
         Spacer(modifier = Modifier.width(8.dp))

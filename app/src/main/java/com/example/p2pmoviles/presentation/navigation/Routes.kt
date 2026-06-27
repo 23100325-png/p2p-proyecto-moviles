@@ -14,4 +14,5 @@ sealed class Routes(val route: String) {
     data object MercadoP2P : Routes("mercado_p2p")
     data object PublicarOferta : Routes("publicar_oferta")
     data object Wallet : Routes("wallet")
+    data object Notifications : Routes("notifications")
 }
