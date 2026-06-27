@@ -155,9 +155,52 @@ class MercadoP2PViewModel : ViewModel() {
                         }
                     }.decodeList<OfertaMercado>()
 
-                // 2. Aplicamos filtros adicionales en memoria para mayor flexibilidad
+                // 2. 🟢 CÁLCULO DE REPUTACIÓN REAL (Rating y Reseñas)
+                val userIds = resultado.map { it.usuarioId }.distinct()
+                val listadoConReputacion = if (userIds.isNotEmpty()) {
+                    // Consultamos todas las calificaciones de los ofertantes encontrados
+                    val todasLasCalificaciones = supabase.postgrest["calificaciones"]
+                        .select {
+                            filter {
+                                isIn("usuario_evaluado_id", userIds)
+                            }
+                        }.decodeList<CalificacionP2P>()
+
+                    // Agrupamos por usuario y calculamos promedio y total
+                    val reputacionMap = todasLasCalificaciones.groupBy { it.usuarioEvaluadoId }
+                        .mapValues { (_, ratings) ->
+                            val promedio = if (ratings.isNotEmpty()) ratings.map { it.puntuacion }.average() else 5.0
+                            val total = ratings.size
+                            Pair(promedio, total)
+                        }
+
+                    // Re-mapeamos la lista de ofertas inyectando la data real calculada
+                    resultado.map { oferta ->
+                        val stats = reputacionMap[oferta.usuarioId]
+                        if (stats != null) {
+                            oferta.copy(
+                                ofertanteInfo = oferta.ofertanteInfo?.copy(
+                                    calificacion = stats.first,
+                                    totalOperaciones = stats.second
+                                )
+                            )
+                        } else {
+                            // Si no tiene calificaciones, ponemos 0 reseñas y rating 5.0 (nuevo) o 0.0
+                            oferta.copy(
+                                ofertanteInfo = oferta.ofertanteInfo?.copy(
+                                    calificacion = 5.0,
+                                    totalOperaciones = 0
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    resultado
+                }
+
+                // 3. Aplicamos filtros adicionales en memoria para mayor flexibilidad
                 val filtradoFinal = MercadoP2PFilterLogic.filtrarOfertas(
-                    resultado,
+                    listadoConReputacion,
                     fechaDesde.value,
                     fechaHasta.value,
                     tasaTarget.value.toDoubleOrNull(),

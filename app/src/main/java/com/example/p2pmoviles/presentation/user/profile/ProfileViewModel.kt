@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.p2pmoviles.data.SupabaseClient
+import com.example.p2pmoviles.data.model.CalificacionP2P
 import com.example.p2pmoviles.data.model.CuentaBancaria
 import com.example.p2pmoviles.data.model.MonedaInfo
 import io.github.jan.supabase.gotrue.auth
@@ -30,6 +31,10 @@ class ProfileViewModel : ViewModel() {
     private val _perfil = MutableStateFlow<PerfilUsuario?>(null)
     val perfil: StateFlow<PerfilUsuario?> = _perfil.asStateFlow()
 
+    // 🟢 NUEVO: Estado para la reputación del usuario
+    private val _rating = MutableStateFlow<Pair<Double, Int>>(Pair(0.0, 0))
+    val rating: StateFlow<Pair<Double, Int>> = _rating.asStateFlow()
+
     private val _monedas = MutableStateFlow<List<MonedaInfo>>(emptyList())
     val monedas: StateFlow<List<MonedaInfo>> = _monedas.asStateFlow()
 
@@ -46,23 +51,40 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             _cargando.value = true
             try {
-                // Cargar perfil desde la tabla 'perfiles'
+                // 1. Cargar perfil desde la tabla 'perfiles'
                 val perfilDb = SupabaseClient.client.postgrest["perfiles"]
                     .select {
                         filter { eq("id", userId) }
                     }.decodeSingleOrNull<PerfilUsuario>()
                 
-                // El email viene de Auth
+                // 2. El email viene de Auth
                 val authUser = SupabaseClient.client.auth.currentUserOrNull()
-                
                 _perfil.value = perfilDb?.copy(email = authUser?.email)
+
+                // 3. 🟢 CARGAR REPUTACIÓN REAL (Promedio y Conteo)
+                try {
+                    val calificaciones = SupabaseClient.client.postgrest["calificaciones"]
+                        .select {
+                            filter { eq("usuario_evaluado_id", userId) }
+                        }.decodeList<CalificacionP2P>()
+
+                    if (calificaciones.isNotEmpty()) {
+                        val promedio = calificaciones.map { it.puntuacion }.average()
+                        val total = calificaciones.size
+                        _rating.value = Pair(promedio, total)
+                    } else {
+                        _rating.value = Pair(0.0, 0)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Error cargando calificaciones", e)
+                }
                 
-                // Cargar monedas para el diálogo de cuentas bancarias
+                // 4. Cargar monedas para el diálogo de cuentas bancarias
                 val listaMonedas = SupabaseClient.client.postgrest["monedas"]
                     .select().decodeList<MonedaInfo>()
                 _monedas.value = listaMonedas
 
-                // Cargar cuentas bancarias del usuario con su información de moneda (Join)
+                // 5. Cargar cuentas bancarias del usuario con su información de moneda (Join)
                 val listaCuentas = SupabaseClient.client.postgrest["cuentas_bancarias"]
                     .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, monedas(*)")) {
                         filter { eq("usuario_id", userId) }

@@ -73,6 +73,36 @@ class HistorialOfertasViewModel : ViewModel() {
     private val _esModoOfertante = MutableStateFlow(true)
     val esModoOfertante: StateFlow<Boolean> = _esModoOfertante.asStateFlow()
 
+    // 🟢 NUEVOS ESTADOS PARA FILTRO DE FECHAS
+    private val _fechaDesde = MutableStateFlow<Long?>(null)
+    val fechaDesde: StateFlow<Long?> = _fechaDesde.asStateFlow()
+
+    private val _fechaHasta = MutableStateFlow<Long?>(null)
+    val fechaHasta: StateFlow<Long?> = _fechaHasta.asStateFlow()
+
+    fun actualizarFechaDesde(millis: Long?) {
+        _fechaDesde.value = millis
+        // Si la nueva fecha 'desde' es mayor que la 'hasta' actual, reseteamos 'hasta'
+        if (millis != null && _fechaHasta.value != null && millis > _fechaHasta.value!!) {
+            _fechaHasta.value = null
+        }
+    }
+
+    fun actualizarFechaHasta(millis: Long?) {
+        // Validación: Solo permitimos que 'hasta' sea mayor o igual a 'desde'
+        val desde = _fechaDesde.value
+        if (desde != null && millis != null && millis < desde) {
+            _mensaje.value = "La fecha 'Hasta' no puede ser anterior a 'Desde'."
+            return
+        }
+        _fechaHasta.value = millis
+    }
+
+    fun limpiarFiltrosFechas() {
+        _fechaDesde.value = null
+        _fechaHasta.value = null
+    }
+
     fun setModoOfertante(esOfertante: Boolean, usuarioId: String) {
         _esModoOfertante.value = esOfertante
         cargarOfertasDelUsuario(usuarioId)

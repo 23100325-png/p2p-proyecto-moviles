@@ -35,6 +35,7 @@ fun ProfileScreen(
 ) {
     val userId = authViewModel.usuarioActualId
     val perfil by profileViewModel.perfil.collectAsState()
+    val rating by profileViewModel.rating.collectAsState()
     val mensaje by profileViewModel.mensaje.collectAsState()
     val cargando by profileViewModel.cargando.collectAsState()
     val monedas by profileViewModel.monedas.collectAsState()
@@ -91,6 +92,33 @@ fun ProfileScreen(
                 modifier = Modifier.size(100.dp),
                 tint = BinanceYellow
             )
+
+            // 🟢 NUEVO: Cuadro de Calificación real debajo de la foto
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(BinanceSurface, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = BinanceYellow,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                val rawRating = rating.first
+                val totalResenas = rating.second
+                val ratingFormateado = if (totalResenas > 0) String.format(java.util.Locale.US, "%.1f", rawRating) else "0.0"
+                
+                Text(
+                    text = "$ratingFormateado ($totalResenas reseñas)",
+                    color = BinanceTextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
