@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.p2pmoviles.presentation.admin.AdminDashboardScreen
+import com.example.p2pmoviles.presentation.admin.AdminMainContainerScreen
 import com.example.p2pmoviles.presentation.auth.AuthViewModel
 import com.example.p2pmoviles.presentation.auth.LoginScreen
 import com.example.p2pmoviles.presentation.auth.RegistroScreen
@@ -123,7 +123,7 @@ fun AppNavigation(authViewModel: AuthViewModel) {
 
         // --- PANTALLA DE ADMIN ---
         composable(Routes.Admin.route) {
-            AdminDashboardScreen()
+            AdminMainContainerScreen()
         }
     }
 }
