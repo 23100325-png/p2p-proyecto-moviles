@@ -58,7 +58,7 @@ fun AdminDashboardScreen(
     
     var selectedTab by remember { mutableIntStateOf(0) }
     var voucherUrlToShow by remember { mutableStateOf<String?>(null) }
-    var usuarioSeleccionadoAccion by remember { mutableStateOf<Pair<Any?, String>?>(null) }
+    var usuarioSeleccionadoAccion by remember { mutableStateOf<Pair<com.example.p2pmoviles.data.model.PerfilAdmin, String>?>(null) }
     var transaccionSeleccionada by remember { mutableStateOf<MovimientoAprobado?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -138,6 +138,37 @@ fun AdminDashboardScreen(
             movimiento = movimiento,
             onDismiss = { transaccionSeleccionada = null }
         )
+    }
+
+    // Diálogo de confirmación para Bloquear/Desbloquear Usuario
+    usuarioSeleccionadoAccion?.let { (usuario, accion) ->
+        if (accion == "BLOQUEAR" || accion == "DESBLOQUEAR") {
+            DialogoConfirmacionAccion(
+                usuario = usuario,
+                accion = accion,
+                usuarioActualId = usuarioActualId,
+                onDismiss = { usuarioSeleccionadoAccion = null },
+                onConfirm = {
+                    val nuevoEstado = accion == "DESBLOQUEAR"
+                    adminUsersViewModel.toggleActivoUsuario(usuario, nuevoEstado)
+                    usuarioSeleccionadoAccion = null
+                }
+            )
+        } else if (accion == "EDITAR" || accion == "ROLES") {
+            com.example.p2pmoviles.presentation.admin.dialogs.DialogoGestionUsuario(
+                usuario = usuario,
+                accion = accion,
+                onDismiss = { usuarioSeleccionadoAccion = null },
+                onConfirm = { tipoOperacion, valor ->
+                    if (tipoOperacion == "EDITAR_NOMBRE") {
+                        adminUsersViewModel.editarNombreUsuario(usuario, valor)
+                    } else if (tipoOperacion == "CAMBIAR_ROL") {
+                        adminUsersViewModel.cambiarRolUsuario(usuario, valor.toLong())
+                    }
+                    usuarioSeleccionadoAccion = null
+                }
+            )
+        }
     }
 
     Scaffold(
@@ -223,6 +254,12 @@ fun AdminDashboardScreen(
                     },
                     onDesbloquearClick = { usuario ->
                         usuarioSeleccionadoAccion = usuario to "DESBLOQUEAR"
+                    },
+                    onEditarClick = { usuario ->
+                        usuarioSeleccionadoAccion = usuario to "EDITAR"
+                    },
+                    onCambiarRolClick = { usuario ->
+                        usuarioSeleccionadoAccion = usuario to "ROLES"
                     },
                     onLimpiarMensaje = { adminUsersViewModel.limpiarMensaje() }
                 )
@@ -322,6 +359,8 @@ fun GestionUsuariosTab(
     adminUsersViewModel: AdminUsersViewModel,
     onBloquearClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
     onDesbloquearClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
+    onEditarClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
+    onCambiarRolClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
     onLimpiarMensaje: () -> Unit
 ) {
     when (val state = usersUiState) {
@@ -356,6 +395,7 @@ fun GestionUsuariosTab(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 12.dp)
+                                .clickable { onLimpiarMensaje() }
                         ) {
                             Text(
                                 it,
@@ -371,7 +411,10 @@ fun GestionUsuariosTab(
                         usuarios = state.usuarios,
                         usuarioActualId = usuarioActualId,
                         onBloquearClick = onBloquearClick,
-                        onDesbloquearClick = onDesbloquearClick
+                        onDesbloquearClick = onDesbloquearClick,
+                        onEditarClick = onEditarClick,
+                        onCambiarRolClick = onCambiarRolClick,
+                        onSearch = { query -> adminUsersViewModel.buscarUsuario(query) }
                     )
                 }
             }
@@ -412,7 +455,8 @@ fun HistorialTransaccionesTab(
                 ) {
                     SeccionHistorialTransacciones(
                         movimientos = state.movimientos,
-                        onMovimientoClick = onTransaccionClick
+                        onMovimientoClick = onTransaccionClick,
+                        onSearch = { query -> adminTransactionsViewModel.buscarTransaccion(query) }
                     )
                 }
             }
