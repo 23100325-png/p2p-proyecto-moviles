@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class PerfilSimplificado(
     val id: String,              // El ID que vincula con Auth (UUID)
     val nombre_completo: String, // El nombre del usuario
-    val rol_id: Long             // 🟢 Nombre exacto de tu columna en Supabase
+    val rol_id: Long,             // 🟢 Nombre exacto de tu columna en Supabase
+    val activo: Boolean = true    // Campo de estado para verificar si está bloqueado
 )
 

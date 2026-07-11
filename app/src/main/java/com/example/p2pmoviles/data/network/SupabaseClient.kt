@@ -5,6 +5,7 @@ import com.example.p2pmoviles.BuildConfig.SUPABASE_URL
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage // 🟢 Verifica este import
 
 object SupabaseClient {
@@ -21,5 +22,6 @@ object SupabaseClient {
         install(Postgrest) // Activa la capacidad de hacer consultas SQL (Select, Insert, Update)
         install(Auth)      // Activa el control de usuarios (signIn, signUp, currentUser)
         install(Storage) // 🟢 ESTO DEBE ESTAR AQUÍ INSTALADO
+        install(Realtime) // 🟢 ACTIVADO PARA ACTUALIZACIONES EN VIVO
     }
 }

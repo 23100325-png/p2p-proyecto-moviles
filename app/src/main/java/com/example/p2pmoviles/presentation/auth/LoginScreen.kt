@@ -126,6 +126,34 @@ fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegistro: () -> Unit, onLo
                     fontSize = 14.sp
                 )
             }
+            is LoginState.Bloqueado -> {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = BinanceError.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = "Bloqueado",
+                            tint = BinanceError,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = (estado as LoginState.Bloqueado).message,
+                            color = BinanceError,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
             is LoginState.Success -> {
                 // Extraemos 'esAdmin' directamente usando paréntesis
                 val esAdmin = (estado as LoginState.Success).esAdmin

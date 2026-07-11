@@ -10,9 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -20,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,20 +26,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage // Importar Coil para renderizar las URLs de las banderas
+import coil.compose.AsyncImage
 import com.example.p2pmoviles.data.model.MovimientoAdmin
+import com.example.p2pmoviles.presentation.admin.components.SeccionGestionUsuarios
+import com.example.p2pmoviles.presentation.admin.components.SeccionHistorialTransacciones
+import com.example.p2pmoviles.presentation.admin.dialogs.DialogoConfirmacionAccion
+import com.example.p2pmoviles.presentation.admin.dialogs.DialogoDetalleTransaccion
+import com.example.p2pmoviles.presentation.auth.AuthViewModel
 import com.example.p2pmoviles.ui.theme.BinanceInputBackground
 import com.example.p2pmoviles.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
-    adminViewModel: AdminViewModel = viewModel()
+    authViewModel: AuthViewModel? = null,
+    onLogoutSuccess: (() -> Unit)? = null,
+    adminViewModel: AdminViewModel = viewModel(),
+    adminUsersViewModel: AdminUsersViewModel = viewModel(),
+    adminTransactionsViewModel: AdminTransactionsViewModel = viewModel()
 ) {
     val uiState by adminViewModel.uiState.collectAsState()
     val estaRefrescando by adminViewModel.estaRefrescando.collectAsState()
+    
+    val usersUiState by adminUsersViewModel.uiState.collectAsState()
+    val usersRefrescando by adminUsersViewModel.estaRefrescando.collectAsState()
+    val mensajeOperacion by adminUsersViewModel.mensajeOperacion.collectAsState()
+    val usuarioActualId by adminUsersViewModel.usuarioActualId.collectAsState()
+
+    val transactionsUiState by adminTransactionsViewModel.uiState.collectAsState()
+    val transactionsRefrescando by adminTransactionsViewModel.estaRefrescando.collectAsState()
+    
     var selectedTab by remember { mutableIntStateOf(0) }
     var voucherUrlToShow by remember { mutableStateOf<String?>(null) }
+    var usuarioSeleccionadoAccion by remember { mutableStateOf<Pair<Any?, String>?>(null) }
+    var transaccionSeleccionada by remember { mutableStateOf<MovimientoAprobado?>(null) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     // Diálogo flotante para visualizar el voucher a pantalla completa
     voucherUrlToShow?.let { url ->
@@ -85,6 +105,41 @@ fun AdminDashboardScreen(
         }
     }
 
+    // Diálogo de confirmación para logout
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Cerrar sesión", color = BinanceTextPrimary) },
+            text = { Text("¿Estás seguro de que deseas cerrar sesión?", color = BinanceTextSecondary) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        authViewModel?.cerrarSesion {
+                            onLogoutSuccess?.invoke()
+                        }
+                        showLogoutDialog = false
+                    }
+                ) {
+                    Text("Cerrar sesión", color = BinanceError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancelar", color = BinanceTextSecondary)
+                }
+            },
+            containerColor = BinanceSurface
+        )
+    }
+
+    // Diálogo de detalle de transacción
+    transaccionSeleccionada?.let { movimiento ->
+        DialogoDetalleTransaccion(
+            movimiento = movimiento,
+            onDismiss = { transaccionSeleccionada = null }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,6 +157,15 @@ fun AdminDashboardScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showLogoutDialog = true }) {
+                        Icon(
+                            Icons.Default.ExitToApp,
+                            contentDescription = "Cerrar sesión",
+                            tint = BinanceError
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BinanceBackground)
             )
         },
@@ -110,14 +174,6 @@ fun AdminDashboardScreen(
         Column(
             modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
-            // Estructura de los Estados en el Estado Exitoso
-            val movimientosCompletos = (uiState as? AdminUIState.Success)?.lista ?: emptyList()
-            val listaFiltrada = when (selectedTab) {
-                1 -> movimientosCompletos.filter { it.tipoMovimiento == "RECARGA" }
-                2 -> movimientosCompletos.filter { it.tipoMovimiento == "RETIRO" }
-                else -> movimientosCompletos
-            }
-
             // Tabs superiores estilo Binance Exchange
             TabRow(
                 selectedTabIndex = selectedTab,
@@ -130,11 +186,7 @@ fun AdminDashboardScreen(
                     )
                 }
             ) {
-                val titulos = listOf(
-                    "Todos (${movimientosCompletos.size})",
-                    "Recarga (${movimientosCompletos.count { it.tipoMovimiento == "RECARGA" }})",
-                    "Retiros (${movimientosCompletos.count { it.tipoMovimiento == "RETIRO" }})"
-                )
+                val titulos = listOf("Movimientos", "Gestión de Usuarios", "Historial")
                 titulos.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
@@ -151,79 +203,217 @@ fun AdminDashboardScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "SOLICITUDES PENDIENTES",
-                color = BinanceTextSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
 
-            // Cuerpo principal del Panel de Control
-            when (val state = uiState) {
-                is AdminUIState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = BinanceYellow)
+            // Contenido según la pestaña seleccionada
+            when (selectedTab) {
+                0 -> MovimientosTab(
+                    uiState = uiState,
+                    estaRefrescando = estaRefrescando,
+                    adminViewModel = adminViewModel,
+                    onVerVoucher = { voucherUrlToShow = it }
+                )
+                1 -> GestionUsuariosTab(
+                    usersUiState = usersUiState,
+                    usersRefrescando = usersRefrescando,
+                    mensajeOperacion = mensajeOperacion,
+                    usuarioActualId = usuarioActualId,
+                    adminUsersViewModel = adminUsersViewModel,
+                    onBloquearClick = { usuario ->
+                        usuarioSeleccionadoAccion = usuario to "BLOQUEAR"
+                    },
+                    onDesbloquearClick = { usuario ->
+                        usuarioSeleccionadoAccion = usuario to "DESBLOQUEAR"
+                    },
+                    onLimpiarMensaje = { adminUsersViewModel.limpiarMensaje() }
+                )
+                2 -> HistorialTransaccionesTab(
+                    transactionsUiState = transactionsUiState,
+                    transactionsRefrescando = transactionsRefrescando,
+                    adminTransactionsViewModel = adminTransactionsViewModel,
+                    onTransaccionClick = { transaccion ->
+                        transaccionSeleccionada = transaccion
                     }
-                }
+                )
+            }
+        }
+    }
+}
 
-                is AdminUIState.Error -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(state.msg, color = BinanceError, textAlign = TextAlign.Center)
-                    }
-                }
+@Composable
+fun MovimientosTab(
+    uiState: AdminUIState,
+    estaRefrescando: Boolean,
+    adminViewModel: AdminViewModel,
+    onVerVoucher: (String) -> Unit
+) {
+    val movimientosCompletos = (uiState as? AdminUIState.Success)?.lista ?: emptyList()
+    val listaFiltrada = movimientosCompletos
 
-                is AdminUIState.Success -> {
-                    // 🟢 2. ENVOLVEMOS EL CONTROL DE LA LISTA EN EL PULLTOREFRESHBOX
-                    PullToRefreshBox(
-                        isRefreshing = estaRefrescando,
-                        onRefresh = {
-                            // 🟢 Esto llama a tu función de Supabase del ViewModel para actualizar
-                            adminViewModel.obtenerMovimientos()
-                        },
+    Text(
+        text = "SOLICITUDES PENDIENTES",
+        color = BinanceTextSecondary,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+
+    when (val state = uiState) {
+        is AdminUIState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = BinanceYellow)
+            }
+        }
+
+        is AdminUIState.Error -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(state.msg, color = BinanceError, textAlign = TextAlign.Center)
+            }
+        }
+
+        is AdminUIState.Success -> {
+            PullToRefreshBox(
+                isRefreshing = estaRefrescando,
+                onRefresh = { adminViewModel.obtenerMovimientos() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (listaFiltrada.isEmpty()) {
+                    Box(
                         modifier = Modifier.fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (listaFiltrada.isEmpty()) {
-                            // Si la lista está vacía, igual permitimos jalar hacia abajo metiendo el texto en un contenedor con scroll
-                            Box(
-                                modifier = Modifier.fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "No hay transacciones pendientes en esta sección.",
-                                    color = BinanceTextSecondary,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        } else {
-                            // Tu LazyColumn original intacta
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(listaFiltrada) { mov ->
-                                    RowTransaccionItem(
-                                        movimiento = mov,
-                                        onVerVoucher = { url -> voucherUrlToShow = url },
-                                        onAprobar = {
-                                            adminViewModel.procesarSolicitud(
-                                                mov,
-                                                aprobar = true
-                                            )
-                                        },
-                                        onRechazar = {
-                                            adminViewModel.procesarSolicitud(
-                                                mov,
-                                                aprobar = false
-                                            )
-                                        }
-                                    )
+                        Text(
+                            "No hay transacciones pendientes.",
+                            color = BinanceTextSecondary,
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(listaFiltrada) { mov ->
+                            RowTransaccionItem(
+                                movimiento = mov,
+                                onVerVoucher = { url -> onVerVoucher(url) },
+                                onAprobar = {
+                                    adminViewModel.procesarSolicitud(mov, aprobar = true)
+                                },
+                                onRechazar = {
+                                    adminViewModel.procesarSolicitud(mov, aprobar = false)
                                 }
-                            }
+                            )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GestionUsuariosTab(
+    usersUiState: AdminUsersUIState,
+    usersRefrescando: Boolean,
+    mensajeOperacion: String?,
+    usuarioActualId: String,
+    adminUsersViewModel: AdminUsersViewModel,
+    onBloquearClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
+    onDesbloquearClick: (com.example.p2pmoviles.data.model.PerfilAdmin) -> Unit,
+    onLimpiarMensaje: () -> Unit
+) {
+    when (val state = usersUiState) {
+        is AdminUsersUIState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = BinanceYellow)
+            }
+        }
+
+        is AdminUsersUIState.Error -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(state.msg, color = BinanceError, textAlign = TextAlign.Center)
+            }
+        }
+
+        is AdminUsersUIState.Success -> {
+            PullToRefreshBox(
+                isRefreshing = usersRefrescando,
+                onRefresh = { adminUsersViewModel.obtenerTodosUsuarios() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    // Mostrar banner de operación exitosa
+                    mensajeOperacion?.let {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = BinanceSuccess.copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                it,
+                                color = BinanceSuccess,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    SeccionGestionUsuarios(
+                        usuarios = state.usuarios,
+                        usuarioActualId = usuarioActualId,
+                        onBloquearClick = onBloquearClick,
+                        onDesbloquearClick = onDesbloquearClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HistorialTransaccionesTab(
+    transactionsUiState: AdminTransactionsUIState,
+    transactionsRefrescando: Boolean,
+    adminTransactionsViewModel: AdminTransactionsViewModel,
+    onTransaccionClick: (MovimientoAprobado) -> Unit
+) {
+    when (val state = transactionsUiState) {
+        is AdminTransactionsUIState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = BinanceYellow)
+            }
+        }
+
+        is AdminTransactionsUIState.Error -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(state.msg, color = BinanceError, textAlign = TextAlign.Center)
+            }
+        }
+
+        is AdminTransactionsUIState.Success -> {
+            PullToRefreshBox(
+                isRefreshing = transactionsRefrescando,
+                onRefresh = { adminTransactionsViewModel.obtenerTransacciones() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    SeccionHistorialTransacciones(
+                        movimientos = state.movimientos,
+                        onMovimientoClick = onTransaccionClick
+                    )
                 }
             }
         }

@@ -87,12 +87,21 @@ class AuthViewModel : ViewModel() {
                         }.decodeSingleOrNull<PerfilSimplificado>()
 
                     if (respuestaPerfil != null) {
-                        // 4. Validación de Roles para separar pantallas
-                        // ID 2 -> Admin (ADM) / ID 1 -> Usuario (USU)
-                        val esAdmin = respuestaPerfil.rol_id == 2L
-                        Log.d("LoginSuccess", "Perfil encontrado. ¿Es Admin?: $esAdmin. Rol ID: ${respuestaPerfil.rol_id}")
+                        // 4. Verificar si el usuario está activo
+                        if (!respuestaPerfil.activo) {
+                            Log.d("LoginBlocked", "Usuario bloqueado: ${usuarioActual.id}")
+                            // Cerrar sesión ya que el usuario está bloqueado
+                            SupabaseClient.client.auth.signOut()
+                            usuarioActualId = ""
+                            _estadoLogin.value = LoginState.Bloqueado("Tu cuenta está bloqueada. Contacta con el administrador.")
+                        } else {
+                            // 5. Validación de Roles para separar pantallas
+                            // ID 2 -> Admin (ADM) / ID 1 -> Usuario (USU)
+                            val esAdmin = respuestaPerfil.rol_id == 2L
+                            Log.d("LoginSuccess", "Perfil encontrado. ¿Es Admin?: $esAdmin. Rol ID: ${respuestaPerfil.rol_id}")
 
-                        _estadoLogin.value = LoginState.Success(esAdmin = esAdmin)
+                            _estadoLogin.value = LoginState.Success(esAdmin = esAdmin)
+                        }
                     } else {
                         // Si llega aquí, el UID existe en Auth pero la consulta no trajo filas de la tabla
                         Log.e("LoginError", "La tabla perfiles no tiene ningún registro con el ID: ${usuarioActual.id}")
@@ -159,6 +168,7 @@ sealed class LoginState {
     data object Idle : LoginState()
     data object Loading : LoginState()
     data class Success(val esAdmin: Boolean) : LoginState()
+    data class Bloqueado(val message: String) : LoginState()
     data class Error(val message: String) : LoginState()
 }
 }

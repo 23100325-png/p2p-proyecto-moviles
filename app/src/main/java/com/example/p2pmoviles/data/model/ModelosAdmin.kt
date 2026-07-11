@@ -30,8 +30,9 @@ data class MovimientoAdmin(
 data class PerfilAdmin(
     val id: String,
     @SerialName("nombre_completo") val nombreCompleto: String,
-    val estado: String,
-    @SerialName("rol_id") val rolId: Int
+    val email: String,
+    val activo: Boolean,
+    @SerialName("rol_id") val rolId: Long
 )
 
 @Serializable

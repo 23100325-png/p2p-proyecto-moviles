@@ -123,7 +123,15 @@ fun AppNavigation(authViewModel: AuthViewModel) {
 
         // --- PANTALLA DE ADMIN ---
         composable(Routes.Admin.route) {
-            AdminDashboardScreen()
+            AdminDashboardScreen(
+                authViewModel = authViewModel,
+                onLogoutSuccess = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.Admin.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
     }
 }

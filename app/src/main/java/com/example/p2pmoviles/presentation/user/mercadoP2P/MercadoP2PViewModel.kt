@@ -10,6 +10,11 @@ import com.example.p2pmoviles.data.model.OfertaMercado
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,11 +27,13 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 class MercadoP2PViewModel : ViewModel() {
 
     private val supabase = SupabaseClient.client
     private var miUsuarioId: String = ""
+    private var realtimeJob: Job? = null
 
     // Catálogo completo para llenar los combos de filtros
     private val _monedasFiltro = MutableStateFlow<List<MonedaInfo>>(emptyList())
@@ -53,8 +60,10 @@ class MercadoP2PViewModel : ViewModel() {
     val tipoCambioReferencial: StateFlow<String?> = _tipoCambioReferencial
 
     fun inicializar(idUsuario: String) {
+        if (this.miUsuarioId == idUsuario) return // Evitar re-inicialización innecesaria
         this.miUsuarioId = idUsuario
         cargarMonedasParaFiltros()
+        escucharCambiosEnOfertas()
     }
 
     private fun cargarMonedasParaFiltros() {
@@ -116,6 +125,38 @@ class MercadoP2PViewModel : ViewModel() {
         buscarOfertasP2P()
     }
 
+    private fun escucharCambiosEnOfertas() {
+        realtimeJob?.cancel()
+
+        realtimeJob = viewModelScope.launch {
+            try {
+                Log.d("MercadoRealtime", "Conectando realtime...")
+
+                supabase.realtime.connect()
+
+                val canal = supabase.realtime.channel("ofertas-p2p")
+
+                val cambios = canal.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "ofertas"
+                }
+
+                cambios
+                    .onEach { cambio ->
+                        Log.d("MercadoRealtime", "Cambio detectado en ofertas: $cambio")
+                        buscarOfertasP2P()
+                    }
+                    .launchIn(viewModelScope)
+
+                Log.d("MercadoRealtime", "Suscribiendo canal...")
+                canal.subscribe(blockUntilSubscribed = true)
+                Log.d("MercadoRealtime", "Canal suscrito correctamente")
+
+            } catch (e: Exception) {
+                Log.e("MercadoRealtime", "Error en suscripción Realtime", e)
+            }
+        }
+    }
+
     fun actualizarFechaDesde(millis: Long?) {
         fechaDesde.value = millis
         buscarOfertasP2P()
@@ -146,7 +187,7 @@ class MercadoP2PViewModel : ViewModel() {
             try {
                 // 1. Traemos todas las ofertas activas para este par de divisas
                 val resultado = supabase.postgrest["ofertas"]
-                    .select(columns = Columns.Companion.raw("*, perfiles(*)")) {
+                    .select(columns = Columns.raw("*, perfiles(*)")) {
                         filter {
                             eq("estado", "ACTIVA")
                             neq("usuario_id", miUsuarioId)
@@ -373,7 +414,7 @@ class MercadoP2PViewModel : ViewModel() {
                     val tasaCruzadaP2P = tasaTengoRespectoAlUsd / tasaQuieroRespectoAlUsd
 
                     // 2. Guardamos el resultado con la estructura correcta para la pizarra
-                    _tipoCambioReferencial.value = "1 $miQuiero = ${String.format("%.4f", tasaCruzadaP2P)} $miTengo"
+                    _tipoCambioReferencial.value = "1 $miQuiero = ${String.format(Locale.US, "%.4f", tasaCruzadaP2P)} $miTengo"
                 } else {
                     _tipoCambioReferencial.value = "❌ Error API: ${respuesta.result}"
                 }
